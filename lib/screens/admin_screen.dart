@@ -197,22 +197,23 @@ class _AdminScreenState extends State<AdminScreen> {
 
   // A collapsible preview box for one piece of generated content.
   Widget _preview(String title, String? content) {
-    return Card(
-      child: ExpansionTile(
-        title: Text(title),
-        children: [
-          Padding(
+  return Card(
+    margin: const EdgeInsets.only(bottom: 8),
+    child: ExpansionTile(
+      title: Text(title),
+      children: [
+        Container(
+          constraints: const BoxConstraints(maxHeight: 400),
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(12),
-            child: content != null && content.isNotEmpty
-                ? MarkdownBody(
-                    data: content.length > 2000
-                        ? '${content.substring(0, 2000)}...'
-                        : content,
-                  )
-                : const Text('Not generated yet.'),
+            child: SelectableText(
+              content ?? 'Not generated yet.',
+              style: const TextStyle(fontSize: 14),
+            ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 }
