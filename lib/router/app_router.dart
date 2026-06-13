@@ -38,13 +38,12 @@ final appRouter = GoRouter(
       builder: (context, state) => const ExamListScreen(),
     ),
     // A single topic page. The ':topic' part is the topic name in the address.
-    GoRoute(
-      path: '/exam/:examId',
-      builder: (context, state) => TopicListScreen
-      (
-      examId: state.pathParameters['examId'] ?? '',
-      examName: 'Topics',
-      ),
-    ),
+GoRoute(
+  path: '/topic/:topic',
+  builder: (context, state) => TopicScreen(
+    topicName: Uri.decodeComponent(state.pathParameters['topic'] ?? 'Unknown topic'),
+    topicId: state.extra as String?,
+  ),
+),
   ],
 );
