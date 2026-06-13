@@ -1,19 +1,51 @@
 # You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/user/application_security/sast/#available-cicd-variables
-# Secret Detection customization: https://docs.gitlab.com/user/application_security/secret_detection/pipeline/configure/
-# Dependency Scanning customization: https://docs.gitlab.com/user/application_security/dependency_scanning/dependency_scanning_sbom/#customizing-analyzer-behavior
-# Container Scanning customization: https://docs.gitlab.com/user/application_security/container_scanning/#customizing-analyzer-behavior
 # Note that environment variables can be set in several places
 # See https://docs.gitlab.com/ci/variables/#cicd-variable-precedence
+#
+# ---------------------------------------------------------------------------
+# WHAT THIS FILE DOES (plain English):
+#   This is the "robot" that runs automatically every time you upload changes.
+#   It does two jobs:
+#     1. Security scans (kept from the default GitLab template).
+#     2. Builds the Flutter web app and publishes it to GitLab Pages (a free
+#        website). After it runs, your app is live on the internet.
+# ---------------------------------------------------------------------------
+
 stages:
-- test
-- secret-detection
+  - test
+  - secret-detection
+  - build
+  - deploy
+
 sast:
   stage: test
+
 include:
-- template: Security/SAST.gitlab-ci.yml
-- template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
 variables:
   SECRET_DETECTION_ENABLED: 'true'
+
 secret_detection:
   stage: secret-detection
+
+# --- Build + publish the website to GitLab Pages ---
+# GitLab Pages requires a job literally named "pages".
+pages:
+  stage: deploy
+  image: ghcr.io/cirruslabs/flutter:stable  # A ready-made box with Flutter installed.
+  script:
+    # Download the building blocks (packages) the app needs.
+    - flutter pub get
+    # Build the website version of the app into a folder called build/web.
+    - flutter build web --release --base-href "/$CI_PROJECT_NAME/"
+    # GitLab Pages publishes whatever is in the "public" folder, so copy there.
+    - rm -rf public
+    - mv build/web public
+  artifacts:
+    paths:
+      - public  # These files become your live website.
+  rules:
+    # Only publish when changes land on the main branch.
+    - if: '$CI_COMMIT_BRANCH == "main"'
