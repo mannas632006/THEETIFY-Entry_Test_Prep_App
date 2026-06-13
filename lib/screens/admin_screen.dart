@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import '../services/content_service.dart';
 import '../services/generation_service.dart';
 import '../config/app_config.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -202,11 +203,13 @@ class _AdminScreenState extends State<AdminScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Text(
-              (content ?? '').length > 1000
-                  ? '${content!.substring(0, 1000)}...'
-                  : (content ?? ''),
-            ),
+            child: content != null && content.isNotEmpty
+                ? MarkdownBody(
+                    data: content.length > 2000
+                        ? '${content.substring(0, 2000)}...'
+                        : content,
+                  )
+                : const Text('Not generated yet.'),
           ),
         ],
       ),
