@@ -10,8 +10,8 @@ This is a simple checklist so you always know where we are.
 - [ ] GitLab CI/CD auto-deploy to Pages
 
 ## Phase 1 - Core student experience
-- [ ] Sign up / log in
-- [ ] Exam list page (NUST NET, SAT, etc.)
+- [x] Sign up / log in
+- [x] Exam list page (loads from database)
 - [ ] Topic page with content sections
 - [ ] AI teacher chat (study-only, locked down)
 
