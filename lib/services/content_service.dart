@@ -42,4 +42,44 @@ class ContentService {
         .maybeSingle();
     return result;
   }
+
+  // ==========================================================================
+  // ADMIN WRITE FUNCTIONS (used by the Admin Dashboard)
+  // ==========================================================================
+
+  // --- Add a new exam. Returns its id. ---
+  static Future<String> addExam(String name, {String? description}) async {
+    final result = await _client
+        .from('exams')
+        .insert({'name': name, 'description': description})
+        .select()
+        .single();
+    return result['id'] as String;
+  }
+
+  // --- Add a new topic under an exam. Returns its id. ---
+  static Future<String> addTopic(String examId, String name) async {
+    final result = await _client
+        .from('topics')
+        .insert({'exam_id': examId, 'name': name})
+        .select()
+        .single();
+    return result['id'] as String;
+  }
+
+  // --- Save (or replace) all generated content for a topic. ---
+  // 'content' is a map of the generated fields. We also mark the topic 'ready'.
+  static Future<void> saveTopicContent(
+    String topicId,
+    Map<String, dynamic> content,
+  ) async {
+    // upsert = update if a row exists for this topic, otherwise insert.
+    await _client.from('topic_content').upsert({
+      'topic_id': topicId,
+      ...content,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, onConflict: 'topic_id');
+
+    await _client.from('topics').update({'status': 'ready'}).eq('id', topicId);
+  }
 }

@@ -142,4 +142,77 @@ Current study context: $examContext
     final data = jsonDecode(response.body);
     return data['choices'][0]['message']['content'] ?? 'No response.';
   }
+
+  // ==========================================================================
+  // CONTENT GENERATION
+  // --------------------------------------------------------------------------
+  // These functions power the Admin Dashboard's "type a topic -> Generate"
+  // feature. Each one asks the AI to produce ONE type of study content for a
+  // given topic and exam. They all reuse the same _generate helper below.
+  // ==========================================================================
+
+  // A general helper: send one instruction to the AI and get back plain text.
+  // Unlike chat(), this is for generating content, not student conversation.
+  static Future<String> _generate(String instruction) async {
+    if (!AppConfig.hasAi) {
+      return 'AI not set up. Add your AI key to the .env file.';
+    }
+    final messages = [
+      {
+        'role': 'system',
+        'content':
+            'You are an expert exam-prep content writer for students in Pakistan. '
+            'Write accurate, in-depth, well-structured study material.'
+      },
+      {'role': 'user', 'content': instruction},
+    ];
+    if (AppConfig.aiProvider == 'claude') return _callClaude(messages);
+    return _callGroq(messages);
+  }
+
+  // 1) Interactive HTML lesson.
+  static Future<String> generateHtmlLesson(String topic, String exam) {
+    return _generate(
+      'Create an interactive, in-depth HTML lesson for the topic "$topic" '
+      'for the "$exam" exam. Use clear headings, examples, and include '
+      'lesser-known but important details. Return ONLY valid HTML (no markdown).',
+    );
+  }
+
+  // 2) Deep, in-depth notes.
+  static Future<String> generateDeepNotes(String topic, String exam) {
+    return _generate(
+      'Write extensive, in-depth study notes for "$topic" for the "$exam" exam. '
+      'Cover everything a top student should know, including advanced points.',
+    );
+  }
+
+  // 3) 3-hour crash revision notes.
+  static Future<String> generateCrashNotes(String topic, String exam) {
+    return _generate(
+      'Write concise "crash revision" notes for "$topic" for the "$exam" exam '
+      'that a student can fully review in under 3 hours before the exam. '
+      'Focus on key formulas, must-know facts, and common traps.',
+    );
+  }
+
+  // 4) AI video lecture script (used later to make narrated slides).
+  static Future<String> generateVideoScript(String topic, String exam) {
+    return _generate(
+      'Write a clear spoken video-lecture script teaching "$topic" for the '
+      '"$exam" exam. Break it into short slides with a heading and narration '
+      'for each slide.',
+    );
+  }
+
+  // 5) A quiz, returned as JSON text the app can read.
+  static Future<String> generateQuiz(String topic, String exam) {
+    return _generate(
+      'Create a 10-question multiple-choice quiz for "$topic" for the "$exam" '
+      'exam. Return ONLY valid JSON: a list of objects with keys '
+      '"question", "options" (list of 4 strings), and "answer" (the correct '
+      'option text). No extra text.',
+    );
+  }
 }
+
