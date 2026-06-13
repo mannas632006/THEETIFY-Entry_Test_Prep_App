@@ -82,4 +82,16 @@ class ContentService {
 
     await _client.from('topics').update({'status': 'ready'}).eq('id', topicId);
   }
+  // --- Get topic content by topic name (used when we only have the name, not id) ---
+  // i added it for Db testing purposesm. don't change it till phase 4 ok
+  static Future<Map<String, dynamic>?> getTopicContentByName(String topicName) async {
+  if (!AppConfig.hasSupabase) return null;
+  final topic = await _client
+      .from('topics')
+      .select()
+      .eq('name', topicName)
+      .maybeSingle();
+  if (topic == null) return null;
+  return getTopicContent(topic['id'] as String);
+}
 }

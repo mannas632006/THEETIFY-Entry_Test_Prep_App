@@ -38,7 +38,7 @@ class _TopicScreenState extends State<TopicScreen> {
     super.initState();
     // If we have a topic id, load its saved content from the database.
     if (widget.topicId != null) {
-      _contentFuture = ContentService.getTopicContent(widget.topicId!);
+      _contentFuture = ContentService.getTopicContentByName(widget.topicName);
     }
   }
 
