@@ -11,6 +11,7 @@ import '../screens/home_screen.dart';
 import '../screens/exam_list_screen.dart';
 import '../screens/topic_screen.dart';
 import '../screens/auth_screen.dart';
+import '../screens/admin_screen.dart';
 
 // The list of all screens (pages) in the app and their web addresses.
 final appRouter = GoRouter(
@@ -25,6 +26,11 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) => const AuthScreen(),
+    ),
+    // The Admin Dashboard (for the owner). Open it at /admin.
+    GoRoute(
+      path: '/admin',
+      builder: (context, state) => const AdminScreen(),
     ),
     // The list of exams (NUST NET, SAT, etc.).
     GoRoute(

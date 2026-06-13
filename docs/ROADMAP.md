@@ -16,9 +16,9 @@ This is a simple checklist so you always know where we are.
 - [x] AI teacher chat (study-only, locked down)
 
 ## Phase 2 - Admin auto-generation
-- [ ] Admin dashboard (only you can log in)
-- [ ] "Type topic name -> Generate everything" engine
-- [ ] Review / Approve / Regenerate buttons
+- [x] Admin dashboard (only you can log in)
+- [x] "Type topic name -> Generate everything" engine
+- [x] Review / Approve / Regenerate buttons
 
 ## Phase 3 - Content types
 - [ ] Interactive HTML lessons
