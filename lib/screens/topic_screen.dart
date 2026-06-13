@@ -15,6 +15,7 @@
 // ===========================================================================
 
 import 'package:flutter/material.dart';
+import '../widgets/ai_teacher_chat.dart';
 
 class TopicScreen extends StatelessWidget {
   final String topicName; // The topic this page is about, e.g. "Trigonometry".
@@ -46,7 +47,8 @@ class TopicScreen extends StatelessWidget {
             _placeholder('In-depth notes will appear here.'),
             _placeholder('3-hour crash revision notes will appear here.'),
             _placeholder('A quiz to test yourself will appear here.'),
-            _placeholder('Chat with your AI teacher will appear here.'),
+            // The live AI Teacher chat, locked to study topics only.
+            AiTeacherChat(examContext: topicName),
             _placeholder('YouTube + AI video lectures will appear here.'),
           ],
         ),
