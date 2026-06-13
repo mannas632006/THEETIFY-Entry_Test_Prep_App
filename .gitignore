@@ -1,0 +1,26 @@
+# ---------------------------------------------------------------------------
+# .gitignore
+# ---------------------------------------------------------------------------
+# This file tells Git which files to NEVER upload to GitLab.
+# The most important reason: keep SECRETS (API keys, passwords) off the internet.
+# ---------------------------------------------------------------------------
+
+# --- Secrets: your real API keys live here. NEVER upload this. ---
+.env
+.env.local
+*.key
+
+# --- Flutter / Dart build files (auto-generated, no need to upload) ---
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# --- Editor / OS junk files ---
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Web build output ---
+/web/build/
