@@ -12,7 +12,7 @@ This is a simple checklist so you always know where we are.
 ## Phase 1 - Core student experience
 - [x] Sign up / log in
 - [x] Exam list page (loads from database)
-- [ ] Topic page with content sections
+- [x] Topic page with content sections
 - [x] AI teacher chat (study-only, locked down)
 
 ## Phase 2 - Admin auto-generation
@@ -21,9 +21,9 @@ This is a simple checklist so you always know where we are.
 - [x] Review / Approve / Regenerate buttons
 
 ## Phase 3 - Content types
-- [ ] Interactive HTML lessons
-- [ ] Deep notes + 3-hour crash notes
-- [ ] Quiz generation
+- [x] Interactive HTML lessons
+- [x] Deep notes + 3-hour crash notes
+- [x] Quiz generation
 - [ ] AI video lectures (script + narrated slides)
 - [ ] YouTube video auto-fetch
 
