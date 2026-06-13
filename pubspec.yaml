@@ -1,0 +1,35 @@
+name: theetify
+description: THEETIFY - AI-powered entry test prep app for students in Pakistan.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+# --- Packages this app uses (think of these as building blocks) ---
+dependencies:
+  flutter:
+    sdk: flutter
+  # Connects the app to Supabase (login + database).
+  supabase_flutter: ^2.5.0
+  # Lets the app talk to the AI service over the internet.
+  http: ^1.2.0
+  # Reads your secret keys from the .env file safely.
+  flutter_dotenv: ^5.1.0
+  # Shows YouTube videos inside the app.
+  youtube_player_iframe: ^5.1.2
+  # Renders the interactive HTML lessons.
+  flutter_widget_from_html: ^0.15.1
+  # Simple page navigation (moving between screens).
+  go_router: ^14.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  # Makes the .env file available to the app at runtime.
+  assets:
+    - .env
