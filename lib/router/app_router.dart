@@ -12,7 +12,7 @@ import '../screens/exam_list_screen.dart';
 import '../screens/topic_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/admin_screen.dart';
-
+import '../screens/topic_list_screen.dart';
 // The list of all screens (pages) in the app and their web addresses.
 final appRouter = GoRouter(
   initialLocation: '/', // The screen shown when the app first opens.
@@ -39,9 +39,11 @@ final appRouter = GoRouter(
     ),
     // A single topic page. The ':topic' part is the topic name in the address.
     GoRoute(
-      path: '/topic/:topic',
-      builder: (context, state) => TopicScreen(
-        topicName: state.pathParameters['topic'] ?? 'Unknown topic',
+      path: '/exam/:examId',
+      builder: (context, state) => TopicListScreen
+      (
+      examId: state.pathParameters['examId'] ?? '',
+      examName: 'Topics',
       ),
     ),
   ],

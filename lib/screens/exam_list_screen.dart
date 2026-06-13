@@ -95,7 +95,7 @@ class _ExamListScreenState extends State<ExamListScreen> {
                       : null,
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   // Opens a sample topic for now. Real topic list comes next.
-                  onTap: () => context.go('/topic/Sample Topic'),
+                  onTap: () => context.go('/exam/${exam['id']}'),
                 ),
               );
             },
