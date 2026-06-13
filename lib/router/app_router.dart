@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import '../screens/home_screen.dart';
 import '../screens/exam_list_screen.dart';
 import '../screens/topic_screen.dart';
+import '../screens/auth_screen.dart';
 
 // The list of all screens (pages) in the app and their web addresses.
 final appRouter = GoRouter(
@@ -19,6 +20,11 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/',
       builder: (context, state) => const HomeScreen(),
+    ),
+    // The login / create-account screen.
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const AuthScreen(),
     ),
     // The list of exams (NUST NET, SAT, etc.).
     GoRoute(

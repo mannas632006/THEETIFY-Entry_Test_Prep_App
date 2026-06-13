@@ -30,8 +30,8 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             ElevatedButton(
-              // When tapped, go to the exam list screen.
-              onPressed: () => context.go('/exams'),
+              // When tapped, go to the login screen first.
+              onPressed: () => context.go('/login'),
               child: const Text('Start Studying'),
             ),
           ],
