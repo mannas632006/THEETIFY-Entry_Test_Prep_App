@@ -1,9 +1,3 @@
-// ===========================================================================
-// lib/screens/admin_screen.dart
-// ---------------------------------------------------------------------------
-// THE ADMIN DASHBOARD (for YOU, the owner).
-// ===========================================================================
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -24,8 +18,28 @@ class _AdminScreenState extends State<AdminScreen> {
   final _topicController = TextEditingController();
 
   bool _busy = false;
+  bool _checkingAuth = true;
+  bool _isAdmin = false;
   String _progress = '';
   Map<String, dynamic>? _result;
+
+  static const String _adminEmail = 'f240576@cfd.nu.edu.pk';
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    // Wait a moment for Supabase to restore session
+    await Future.delayed(const Duration(milliseconds: 500));
+    final user = Supabase.instance.client.auth.currentUser;
+    setState(() {
+      _isAdmin = user?.email == _adminEmail;
+      _checkingAuth = false;
+    });
+  }
 
   Future<void> _generate() async {
     final exam = _examController.text.trim();
@@ -95,15 +109,19 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Admin protection check
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user?.email != 'f240576@cfd.nu.edu.pk') {
-      return Scaffold(
+    if (_checkingAuth) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (!_isAdmin) {
+      return const Scaffold(
         body: Center(
           child: Text(
             'Access Denied.\nYou are not authorized to view this page.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, color: Colors.red),
+            style: TextStyle(fontSize: 18, color: Colors.red),
           ),
         ),
       );
@@ -143,7 +161,6 @@ class _AdminScreenState extends State<AdminScreen> {
               label: const Text('Generate Everything'),
             ),
             const SizedBox(height: 16),
-
             if (_busy)
               Row(
                 children: [
@@ -156,7 +173,6 @@ class _AdminScreenState extends State<AdminScreen> {
                   Expanded(child: Text(_progress)),
                 ],
               ),
-
             if (_result != null && !_busy) ...[
               const Divider(height: 32),
               const Text('Review the generated content:',
