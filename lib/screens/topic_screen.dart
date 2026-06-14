@@ -75,11 +75,13 @@ class _TopicScreenState extends State<TopicScreen> {
             return TabBarView(
               children: [
                 // 1) Interactive HTML lesson (rendered as real HTML).
-                _scrollable(
-                  content?['html_lesson'] != null
-                      ? HtmlWidget(content!['html_lesson'])
-                      : _empty('The lesson has not been generated yet.'),
-                ),
+                // 1) Interactive HTML lesson (rendered as real HTML).
+              content?['html_lesson'] != null
+    ? _scrollable(HtmlWidget(
+        content!['html_lesson'],
+        textStyle: const TextStyle(fontSize: 15),
+      ))
+    : _empty('The lesson has not been generated yet.'),
                 // 2) Deep notes (plain text).
                 _scrollable(Text(content?['deep_notes'] ??
                     'In-depth notes have not been generated yet.')),

@@ -171,13 +171,17 @@ Current study context: $examContext
   }
 
   // 1) Interactive HTML lesson.
-  static Future<String> generateHtmlLesson(String topic, String exam) {
-    return _generate(
-      'Create an interactive, in-depth HTML lesson for the topic "$topic" '
-      'for the "$exam" exam. Use clear headings, examples, and include '
-      'lesser-known but important details. Return ONLY valid HTML (no markdown).',
-    );
-  }
+static Future<String> generateHtmlLesson(String topic, String exam) {
+  return _generate(
+    'Create an interactive, in-depth HTML lesson for the topic "$topic" '
+    'for the "$exam" exam. '
+    'Return ONLY a complete HTML document body (no <html>, <head>, or <body> tags). '
+    'Use <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>, <table> tags for structure. '
+    'Include: introduction, key concepts, formulas, examples with solutions, '
+    'and practice problems. Make it visually rich with proper HTML formatting. '
+    'Do NOT use markdown. Do NOT include backticks. Return pure HTML only.',
+  );
+}
 
   // 2) Deep, in-depth notes.
   static Future<String> generateDeepNotes(String topic, String exam) {
