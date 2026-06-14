@@ -49,4 +49,12 @@ class AuthService {
   static Future<void> signOut() async {
     await _client.auth.signOut();
   }
+
+  // Only this email can access the admin dashboard.
+static const String _adminEmail = 'mannas.632006@gmail.com';
+
+static bool get isAdmin {
+  final email = currentEmail;
+  return email != null && email == _adminEmail;
+}
 }
