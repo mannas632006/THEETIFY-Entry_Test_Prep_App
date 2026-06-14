@@ -1,26 +1,12 @@
-// ===========================================================================
-// lib/screens/topic_screen.dart
-// ---------------------------------------------------------------------------
-// The heart of the app: a single topic's study page. It LOADS the generated
-// content for this topic from the database and shows it across tabs:
-//   - Lesson (interactive HTML)
-//   - Deep Notes
-//   - Crash Notes (3-hour revision)
-//   - Quiz (interactive)
-//   - AI Teacher (live chat)
-//   - Videos (coming next)
-// ===========================================================================
-
 import 'package:flutter/material.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'dart:ui_web' as ui;
+import 'dart:html' as html;
 
 import '../services/content_service.dart';
 import '../widgets/ai_teacher_chat.dart';
 import '../widgets/quiz_view.dart';
 
 class TopicScreen extends StatefulWidget {
-  // We accept BOTH a topic name (to show) and an optional topic id (to load
-  // content from the database). When opened from the exam list, the id is set.
   final String topicName;
   final String? topicId;
   const TopicScreen({super.key, required this.topicName, this.topicId});
@@ -30,16 +16,12 @@ class TopicScreen extends StatefulWidget {
 }
 
 class _TopicScreenState extends State<TopicScreen> {
-  // Holds the loaded content for this topic (null until loaded).
   Future<Map<String, dynamic>?>? _contentFuture;
 
   @override
   void initState() {
     super.initState();
-    // If we have a topic id, load its saved content from the database.
-    if (widget.topicId != null) {
-      _contentFuture = ContentService.getTopicContentByName(widget.topicName);
-    }
+    _contentFuture = ContentService.getTopicContentByName(widget.topicName);
   }
 
   @override
@@ -64,37 +46,31 @@ class _TopicScreenState extends State<TopicScreen> {
         body: FutureBuilder<Map<String, dynamic>?>(
           future: _contentFuture,
           builder: (context, snapshot) {
-            // While loading content from the database, show a spinner.
-            if (widget.topicId != null &&
-                snapshot.connectionState == ConnectionState.waiting) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final content = snapshot.data; // may be null if nothing saved yet.
+            final content = snapshot.data;
 
             return TabBarView(
               children: [
-                // 1) Interactive HTML lesson (rendered as real HTML).
-                // 1) Interactive HTML lesson (rendered as real HTML).
-              content?['html_lesson'] != null
-    ? _scrollable(HtmlWidget(
-        content!['html_lesson'],
-        textStyle: const TextStyle(fontSize: 15),
-      ))
-    : _empty('The lesson has not been generated yet.'),
-                // 2) Deep notes (plain text).
+                // 1) Interactive HTML lesson
+                content?['html_lesson'] != null
+                    ? _HtmlLessonView(htmlContent: content!['html_lesson'])
+                    : _empty('The lesson has not been generated yet.'),
+                // 2) Deep notes
                 _scrollable(Text(content?['deep_notes'] ??
                     'In-depth notes have not been generated yet.')),
-                // 3) Crash notes (plain text).
+                // 3) Crash notes
                 _scrollable(Text(content?['crash_notes'] ??
                     'Crash notes have not been generated yet.')),
-                // 4) Interactive quiz.
+                // 4) Quiz
                 content?['quiz_json'] != null
                     ? QuizView(quizJson: content!['quiz_json'])
                     : _empty('The quiz has not been generated yet.'),
-                // 5) Live AI Teacher chat, locked to study topics only.
+                // 5) AI Teacher
                 AiTeacherChat(examContext: widget.topicName),
-                // 6) Videos (coming next).
+                // 6) Videos
                 _empty('YouTube + AI video lectures will appear here.'),
               ],
             );
@@ -104,7 +80,6 @@ class _TopicScreenState extends State<TopicScreen> {
     );
   }
 
-  // Wraps content in scrolling + padding so long text reads nicely.
   Widget _scrollable(Widget child) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -112,13 +87,116 @@ class _TopicScreenState extends State<TopicScreen> {
     );
   }
 
-  // A centered friendly message for empty tabs.
   Widget _empty(String text) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(text, style: const TextStyle(fontSize: 16)),
       ),
+    );
+  }
+}
+
+class _HtmlLessonView extends StatefulWidget {
+  final String htmlContent;
+  const _HtmlLessonView({required this.htmlContent});
+
+  @override
+  State<_HtmlLessonView> createState() => _HtmlLessonViewState();
+}
+
+class _HtmlLessonViewState extends State<_HtmlLessonView> {
+  late final String _viewId;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewId = 'html-lesson-${DateTime.now().millisecondsSinceEpoch}';
+
+    final String fullHtml = '''
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0D1B2A 0%, #1a2a3a 100%);
+    color: #e0e0e0;
+    padding: 24px;
+    line-height: 1.7;
+  }
+  h1, h2, h3 {
+    color: #1B98E0;
+    margin: 24px 0 12px 0;
+    animation: fadeInDown 0.5s ease;
+  }
+  h1 { font-size: 2em; border-bottom: 2px solid #1B98E0; padding-bottom: 8px; }
+  h2 { font-size: 1.5em; }
+  h3 { font-size: 1.2em; color: #4db8ff; }
+  p { margin: 12px 0; animation: fadeIn 0.5s ease; }
+  ul, ol { margin: 12px 0 12px 24px; }
+  li { margin: 8px 0; animation: fadeInLeft 0.5s ease; }
+  strong { color: #1B98E0; }
+  em { color: #4db8ff; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    animation: fadeIn 0.5s ease;
+  }
+  th {
+    background: #1B98E0;
+    color: white;
+    padding: 12px;
+    text-align: left;
+  }
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #2a3a4a;
+  }
+  tr:hover { background: rgba(27, 152, 224, 0.1); }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+</style>
+</head>
+<body>
+${widget.htmlContent}
+</body>
+</html>
+''';
+
+    final blob = html.Blob([fullHtml], 'text/html');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final iframe = html.IFrameElement()
+      ..src = url
+      ..style.border = 'none'
+      ..style.width = '100%'
+      ..style.height = '100%';
+
+    ui.platformViewRegistry.registerViewFactory(
+      _viewId,
+      (int viewId) => iframe,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: MediaQuery.of(context).size.height - 200,
+      child: HtmlElementView(viewType: _viewId),
     );
   }
 }
