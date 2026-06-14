@@ -28,6 +28,11 @@ class _AiTeacherChatState extends State<AiTeacherChat> {
     final text = _inputController.text.trim();
     if (text.isEmpty || _waiting) return;
 
+    // Snapshot the conversation so far (PAST turns only) to send as history.
+    // We take this BEFORE adding the new message, otherwise the new message
+    // would be sent twice: once in history and once as the message itself.
+    final history = List<Map<String, String>>.from(_messages);
+
     setState(() {
       _messages.add({'role': 'user', 'content': text});
       _inputController.clear();
@@ -38,7 +43,7 @@ class _AiTeacherChatState extends State<AiTeacherChat> {
     final reply = await AiService.chat(
       message: text,
       examContext: widget.examContext,
-      history: List<Map<String, String>>.from(_messages),
+      history: history,
     );
 
     if (!mounted) return;
