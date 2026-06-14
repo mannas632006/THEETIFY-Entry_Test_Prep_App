@@ -59,11 +59,14 @@ class _TopicScreenState extends State<TopicScreen> {
                     ? _HtmlLessonView(htmlContent: content!['html_lesson'])
                     : _empty('The lesson has not been generated yet.'),
                 // 2) Deep notes
-                _scrollable(Text(content?['deep_notes'] ??
-                    'In-depth notes have not been generated yet.')),
-                // 3) Crash notes
-                _scrollable(Text(content?['crash_notes'] ??
-                    'Crash notes have not been generated yet.')),
+                // 2) Deep notes
+content?['deep_notes'] != null
+    ? _HtmlLessonView(htmlContent: _markdownToHtml(content!['deep_notes']))
+    : _empty('In-depth notes have not been generated yet.'),
+// 3) Crash notes
+content?['crash_notes'] != null
+    ? _HtmlLessonView(htmlContent: _markdownToHtml(content!['crash_notes']))
+    : _empty('Crash notes have not been generated yet.'),
                 // 4) Quiz
                 content?['quiz_json'] != null
                     ? QuizView(quizJson: content!['quiz_json'])
