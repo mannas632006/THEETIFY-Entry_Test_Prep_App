@@ -14,6 +14,7 @@ import '../screens/auth_screen.dart';
 import '../screens/admin_screen.dart';
 import '../screens/topic_list_screen.dart';
 import '../services/auth_service.dart';
+import 'package:flutter/material.dart';
 // The list of all screens (pages) in the app and their web addresses.
 final appRouter = GoRouter(
   initialLocation: '/', // The screen shown when the app first opens.
