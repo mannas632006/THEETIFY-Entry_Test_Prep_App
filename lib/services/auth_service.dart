@@ -10,6 +10,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_config.dart';
 
 class AuthService {
+  // The single email allowed into the Admin Dashboard. Change this if the
+  // owner's email ever changes. (Later this can move to the profiles table.)
+  static const String adminEmail = 'f240576@cfd.nu.edu.pk';
+
   // A shortcut to the Supabase client (only used when keys are present).
   static SupabaseClient get _client => Supabase.instance.client;
 
@@ -19,6 +23,17 @@ class AuthService {
 
   // The current user's email (or null if not logged in).
   static String? get currentEmail => _client.auth.currentUser?.email;
+
+  // --- Is the current user the admin? ---
+  // Async so the screen can wait while the session is confirmed, and so we
+  // can later swap this for a real database role check without changing
+  // callers. Returns false if Supabase is off or no one is logged in.
+  static Future<bool> isAdmin() async {
+    if (!AppConfig.hasSupabase) return false;
+    final email = _client.auth.currentUser?.email;
+    if (email == null) return false;
+    return email.toLowerCase() == adminEmail.toLowerCase();
+  }
 
   // --- Create a new account ---
   // Returns null on success, or an error message to show the user.
@@ -49,12 +64,4 @@ class AuthService {
   static Future<void> signOut() async {
     await _client.auth.signOut();
   }
-
-  // Only this email can access the admin dashboard.
-static const String _adminEmail = 'f240576@cfd.nu.edu.pk';
-
-static bool get isAdmin {
-  final email = currentEmail;
-  return email != null && email == _adminEmail;
-}
 }
