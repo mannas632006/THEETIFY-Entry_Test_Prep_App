@@ -3,16 +3,14 @@
 // ---------------------------------------------------------------------------
 // The heart of the app: a single topic's study page. It LOADS the generated
 // content for this topic from the database and shows it across tabs:
-//   - Lesson (interactive HTML)
+//   - Lesson (interactive HTML inside a real iframe, so animations/JS work)
 //   - Deep Notes (Markdown rendered as HTML)
 //   - Crash Notes (3-hour revision, Markdown rendered as HTML)
 //   - Quiz (interactive)
 //   - AI Teacher (live chat)
 //   - Videos (coming next)
 //
-// Content loads using the topic id passed in from the topic list. The notes
-// arrive as Markdown, so we convert them to HTML (see utils/markdown.dart)
-// and render with the same HtmlWidget the lesson tab uses.
+// Content loads using the topic id passed in from the topic list.
 // ===========================================================================
 
 import 'package:flutter/material.dart';
@@ -21,6 +19,7 @@ import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import '../services/content_service.dart';
 import '../utils/markdown.dart';
 import '../widgets/ai_teacher_chat.dart';
+import '../widgets/html_iframe.dart';
 import '../widgets/quiz_view.dart';
 
 class TopicScreen extends StatefulWidget {
@@ -88,12 +87,12 @@ class _TopicScreenState extends State<TopicScreen> {
 
             return TabBarView(
               children: [
-                // 1) Interactive HTML lesson (rendered as real HTML).
-                _scrollable(
-                  _hasText(htmlLesson)
-                      ? HtmlWidget(htmlLesson!)
-                      : const Text('The lesson has not been generated yet.'),
-                ),
+                // 1) Interactive HTML lesson inside a real iframe.
+                //    (Not wrapped in a scroll view: the iframe fills the tab
+                //    and the lesson page scrolls inside itself.)
+                _hasText(htmlLesson)
+                    ? HtmlIframe(html: htmlLesson!)
+                    : _empty('The lesson has not been generated yet.'),
                 // 2) Deep notes (Markdown -> HTML).
                 _scrollable(
                   _hasText(deepNotes)
