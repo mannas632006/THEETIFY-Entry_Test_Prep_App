@@ -24,6 +24,27 @@ class _TopicScreenState extends State<TopicScreen> {
     _contentFuture = ContentService.getTopicContentByName(widget.topicName);
   }
 
+  String _markdownToHtml(String markdown) {
+    String result = markdown;
+    result = result.replaceAllMapped(
+        RegExp(r'^### (.+)$', multiLine: true), (m) => '<h3>${m[1]}</h3>');
+    result = result.replaceAllMapped(
+        RegExp(r'^## (.+)$', multiLine: true), (m) => '<h2>${m[1]}</h2>');
+    result = result.replaceAllMapped(
+        RegExp(r'^# (.+)$', multiLine: true), (m) => '<h1>${m[1]}</h1>');
+    result = result.replaceAllMapped(
+        RegExp(r'\*\*(.+?)\*\*'), (m) => '<strong>${m[1]}</strong>');
+    result = result.replaceAllMapped(
+        RegExp(r'^\* (.+)$', multiLine: true), (m) => '<li>${m[1]}</li>');
+    result = result.replaceAllMapped(
+        RegExp(r'^\- (.+)$', multiLine: true), (m) => '<li>${m[1]}</li>');
+    result = result.replaceAllMapped(
+        RegExp(r'^\d+\. (.+)$', multiLine: true), (m) => '<li>${m[1]}</li>');
+    result = result.replaceAllMapped(
+        RegExp(r'^(?!<).+$', multiLine: true), (m) => '<p>${m[0]}</p>');
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -54,19 +75,20 @@ class _TopicScreenState extends State<TopicScreen> {
 
             return TabBarView(
               children: [
-                // 1) Interactive HTML lesson
+                // 1) Lesson
                 content?['html_lesson'] != null
                     ? _HtmlLessonView(htmlContent: content!['html_lesson'])
                     : _empty('The lesson has not been generated yet.'),
                 // 2) Deep notes
-                // 2) Deep notes
-content?['deep_notes'] != null
-    ? _HtmlLessonView(htmlContent: _markdownToHtml(content!['deep_notes']))
-    : _empty('In-depth notes have not been generated yet.'),
-// 3) Crash notes
-content?['crash_notes'] != null
-    ? _HtmlLessonView(htmlContent: _markdownToHtml(content!['crash_notes']))
-    : _empty('Crash notes have not been generated yet.'),
+                content?['deep_notes'] != null
+                    ? _HtmlLessonView(
+                        htmlContent: _markdownToHtml(content!['deep_notes']))
+                    : _empty('In-depth notes have not been generated yet.'),
+                // 3) Crash notes
+                content?['crash_notes'] != null
+                    ? _HtmlLessonView(
+                        htmlContent: _markdownToHtml(content!['crash_notes']))
+                    : _empty('Crash notes have not been generated yet.'),
                 // 4) Quiz
                 content?['quiz_json'] != null
                     ? QuizView(quizJson: content!['quiz_json'])
@@ -80,13 +102,6 @@ content?['crash_notes'] != null
           },
         ),
       ),
-    );
-  }
-
-  Widget _scrollable(Widget child) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: child,
     );
   }
 
