@@ -3,7 +3,10 @@
 // ---------------------------------------------------------------------------
 // Shows the list of exams a student can prepare for, loaded LIVE from the
 // Supabase database. If the database has no exams yet, it shows a friendly
-// message telling you to add some from the Admin Dashboard (coming soon).
+// message telling you to add some from the Admin Dashboard.
+//
+// Tapping an exam now opens that exam's TOPIC LIST (not a hardcoded sample),
+// passing the exam id so the next screen can load its real topics.
 // ===========================================================================
 
 import 'package:flutter/material.dart';
@@ -28,6 +31,16 @@ class _ExamListScreenState extends State<ExamListScreen> {
     super.initState();
     // Start loading the exams as soon as the screen opens.
     _examsFuture = ContentService.getExams();
+  }
+
+  // Opens an exam's topic list, passing its id (to load topics) and name.
+  void _openExam(Map<String, dynamic> exam) {
+    final id = exam['id']?.toString() ?? '';
+    final name = exam['name']?.toString() ?? 'Topics';
+    if (id.isEmpty) return;
+    context.go(
+      Uri(path: '/exam/$id', queryParameters: {'name': name}).toString(),
+    );
   }
 
   @override
@@ -73,7 +86,7 @@ class _ExamListScreenState extends State<ExamListScreen> {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  'No exams yet.\nAdd some from the Admin Dashboard (coming soon).',
+                  'No exams yet.\nAdd some from the Admin Dashboard.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16),
                 ),
@@ -94,8 +107,8 @@ class _ExamListScreenState extends State<ExamListScreen> {
                       ? Text(exam['description'])
                       : null,
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  // Opens a sample topic for now. Real topic list comes next.
-                  onTap: () => context.go('/exam/${exam['id']}'),
+                  // Open this exam's topic list.
+                  onTap: () => _openExam(exam),
                 ),
               );
             },
