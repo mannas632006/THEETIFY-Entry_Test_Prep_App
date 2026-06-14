@@ -15,6 +15,7 @@ import '../screens/admin_screen.dart';
 import '../screens/topic_list_screen.dart';
 import '../services/auth_service.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 // The list of all screens (pages) in the app and their web addresses.
 final appRouter = GoRouter(
   initialLocation: '/', // The screen shown when the app first opens.
@@ -33,7 +34,10 @@ final appRouter = GoRouter(
     GoRoute(
   path: '/admin',
   builder: (context, state) {
-    if (!AuthService.isLoggedIn || !AuthService.isAdmin) {
+    // Give Supabase a moment to restore session, then check.
+    final user = Supabase.instance.client.auth.currentUser;
+    final email = user?.email ?? '';
+    if (email != 'mannas.632006@gmail.com') {
       return const Scaffold(
         body: Center(
           child: Text(
@@ -43,6 +47,10 @@ final appRouter = GoRouter(
           ),
         ),
       );
+    }
+    return const AdminScreen();
+  },
+),
     }
     return const AdminScreen();
   },
