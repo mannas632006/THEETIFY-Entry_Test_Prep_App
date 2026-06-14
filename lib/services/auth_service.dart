@@ -51,7 +51,7 @@ class AuthService {
   }
 
   // Only this email can access the admin dashboard.
-static const String _adminEmail = 'mannas.632006@gmail.com';
+static const String _adminEmail = 'f240576@cfd.nu.edu.pk';
 
 static bool get isAdmin {
   final email = currentEmail;
