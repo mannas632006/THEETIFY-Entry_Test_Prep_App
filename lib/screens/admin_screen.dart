@@ -2,20 +2,10 @@
 // lib/screens/admin_screen.dart
 // ---------------------------------------------------------------------------
 // THE ADMIN DASHBOARD (for YOU, the owner).
-//
-// What you do here, in plain steps:
-//   1. Pick which exam the topic belongs to (or type a new exam name).
-//   2. Type the topic name (e.g. "Trigonometry").
-//   3. Press "Generate Everything".
-//   4. The app uses AI to create the lesson, notes, crash notes, quiz, and
-//      video script automatically. You see progress messages as it works.
-//   5. Review the result, then press "Publish" to make it live for students.
-//
-// NOTE: Generating uses your AI key. On the free Groq key it costs nothing
-// while testing. On a paid key, each generation uses some credits.
 // ===========================================================================
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/content_service.dart';
 import '../services/generation_service.dart';
@@ -33,16 +23,14 @@ class _AdminScreenState extends State<AdminScreen> {
   final _examController = TextEditingController();
   final _topicController = TextEditingController();
 
-  bool _busy = false;            // true while generating.
-  String _progress = '';         // current progress message.
-  Map<String, dynamic>? _result; // the generated content, before publishing.
+  bool _busy = false;
+  String _progress = '';
+  Map<String, dynamic>? _result;
 
-  // Step 1+2+3: generate all content for the typed topic.
   Future<void> _generate() async {
     final exam = _examController.text.trim();
     final topic = _topicController.text.trim();
 
-    // Basic checks so nothing breaks.
     if (exam.isEmpty || topic.isEmpty) {
       _showMessage('Please enter both an exam name and a topic name.');
       return;
@@ -72,7 +60,6 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  // Step 5: save everything to the database so students can see it.
   Future<void> _publish() async {
     if (_result == null) return;
     if (!AppConfig.hasSupabase) {
@@ -85,12 +72,11 @@ class _AdminScreenState extends State<AdminScreen> {
       final exam = _examController.text.trim();
       final topic = _topicController.text.trim();
 
-      // Create the exam and topic rows, then save the generated content.
       final examId = await ContentService.addExam(exam);
       final topicId = await ContentService.addTopic(examId, topic);
 
       final toSave = Map<String, dynamic>.from(_result!);
-      toSave['approved'] = true; // Publishing means approved.
+      toSave['approved'] = true;
       await ContentService.saveTopicContent(topicId, toSave);
 
       _showMessage('Published! "$topic" is now live for students.');
@@ -109,6 +95,20 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Admin protection check
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user?.email != 'f240576@cfd.nu.edu.pk') {
+      return Scaffold(
+        body: Center(
+          child: Text(
+            'Access Denied.\nYou are not authorized to view this page.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18, color: Colors.red),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Admin Dashboard')),
       body: SingleChildScrollView(
@@ -121,7 +121,6 @@ class _AdminScreenState extends State<AdminScreen> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            // Exam name input.
             TextField(
               controller: _examController,
               decoration: const InputDecoration(
@@ -130,7 +129,6 @@ class _AdminScreenState extends State<AdminScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            // Topic name input.
             TextField(
               controller: _topicController,
               decoration: const InputDecoration(
@@ -139,7 +137,6 @@ class _AdminScreenState extends State<AdminScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // Generate button.
             ElevatedButton.icon(
               onPressed: _busy ? null : _generate,
               icon: const Icon(Icons.auto_awesome),
@@ -147,7 +144,6 @@ class _AdminScreenState extends State<AdminScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Progress / spinner while working.
             if (_busy)
               Row(
                 children: [
@@ -161,7 +157,6 @@ class _AdminScreenState extends State<AdminScreen> {
                 ],
               ),
 
-            // Review area: show previews of what was generated.
             if (_result != null && !_busy) ...[
               const Divider(height: 32),
               const Text('Review the generated content:',
@@ -195,25 +190,24 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  // A collapsible preview box for one piece of generated content.
   Widget _preview(String title, String? content) {
-  return Card(
-    margin: const EdgeInsets.only(bottom: 8),
-    child: ExpansionTile(
-      title: Text(title),
-      children: [
-        Container(
-          constraints: const BoxConstraints(maxHeight: 400),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(12),
-            child: SelectableText(
-              content ?? 'Not generated yet.',
-              style: const TextStyle(fontSize: 14),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ExpansionTile(
+        title: Text(title),
+        children: [
+          Container(
+            constraints: const BoxConstraints(maxHeight: 400),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(12),
+              child: SelectableText(
+                content ?? 'Not generated yet.',
+                style: const TextStyle(fontSize: 14),
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 }

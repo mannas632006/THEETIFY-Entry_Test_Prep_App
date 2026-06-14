@@ -22,22 +22,7 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/admin',
-      builder: (context, state) {
-        final user = Supabase.instance.client.auth.currentUser;
-        final email = user?.email ?? '';
-        if (email != 'mannas.632006@gmail.com') {
-          return const Scaffold(
-            body: Center(
-              child: Text(
-                'Access Denied.\nYou are not authorized to view this page.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, color: Colors.red),
-              ),
-            ),
-          );
-        }
-        return const AdminScreen();
-      },
+      builder: (context, state) => const AdminScreen(),
     ),
     GoRoute(
       path: '/exams',
