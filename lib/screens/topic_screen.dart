@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui_web' as ui;
-import 'dart:html' as html;
+import 'dart:html' as html_lib;
 
 import '../services/content_service.dart';
 import '../widgets/ai_teacher_chat.dart';
@@ -96,7 +96,10 @@ class _TopicScreenState extends State<TopicScreen> {
                 // 5) AI Teacher
                 AiTeacherChat(examContext: widget.topicName),
                 // 6) Videos
-                _empty('YouTube + AI video lectures will appear here.'),
+                _VideoTab(
+                  topicName: widget.topicName,
+                  videoScript: content?['video_script'],
+                ),
               ],
             );
           },
@@ -110,6 +113,107 @@ class _TopicScreenState extends State<TopicScreen> {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Text(text, style: const TextStyle(fontSize: 16)),
+      ),
+    );
+  }
+}
+
+class _VideoTab extends StatelessWidget {
+  final String topicName;
+  final String? videoScript;
+  const _VideoTab({required this.topicName, this.videoScript});
+
+  @override
+  Widget build(BuildContext context) {
+    final searchQuery = Uri.encodeComponent('$topicName lecture');
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // YouTube search button
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D1B2A),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                  color: const Color(0xFF1B98E0).withOpacity(0.3)),
+            ),
+            child: Column(
+              children: [
+                const Text('🎥', style: TextStyle(fontSize: 40)),
+                const SizedBox(height: 12),
+                Text(
+                  'YouTube Lectures: $topicName',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Watch curated video lectures for this topic',
+                  style: TextStyle(color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    html_lib.window.open(
+                      'https://www.youtube.com/results?search_query=$searchQuery',
+                      '_blank',
+                    );
+                  },
+                  icon: const Icon(Icons.play_circle_filled),
+                  label: const Text('Search on YouTube'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // AI Video Script
+          if (videoScript != null) ...[
+            const Text(
+              '📋 AI Video Lecture Script',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'AI-generated script for this topic:',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D1B2A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: const Color(0xFF1B98E0).withOpacity(0.2)),
+              ),
+              child: SelectableText(
+                videoScript!,
+                style: const TextStyle(fontSize: 14, height: 1.6),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -196,9 +300,9 @@ ${widget.htmlContent}
 </html>
 ''';
 
-    final blob = html.Blob([fullHtml], 'text/html');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final iframe = html.IFrameElement()
+    final blob = html_lib.Blob([fullHtml], 'text/html');
+    final url = html_lib.Url.createObjectUrlFromBlob(blob);
+    final iframe = html_lib.IFrameElement()
       ..src = url
       ..style.border = 'none'
       ..style.width = '100%'
