@@ -1,9 +1,9 @@
 // ===========================================================================
 // lib/services/content_service.dart
 // ---------------------------------------------------------------------------
-// This file reads exams, topics, and topic content FROM the Supabase database.
-// The rest of the app calls these simple functions to get data, so no screen
-// has to know how the database works.
+// This file reads exams, topics, and topic content FROM the Supabase database,
+// and (for the admin) writes them back. The rest of the app calls these simple
+// functions so no screen has to know how the database works.
 // ===========================================================================
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -47,8 +47,19 @@ class ContentService {
   // ADMIN WRITE FUNCTIONS (used by the Admin Dashboard)
   // ==========================================================================
 
-  // --- Add a new exam. Returns its id. ---
+  // --- Add an exam, OR reuse the existing one with the same name. ---
+  // Returns its id. This prevents a new "NUST NET" row every time you publish.
   static Future<String> addExam(String name, {String? description}) async {
+    // Look for an exam that already has this exact name.
+    final existing = await _client
+        .from('exams')
+        .select('id')
+        .eq('name', name)
+        .limit(1)
+        .maybeSingle();
+    if (existing != null) return existing['id'] as String;
+
+    // None found: create it.
     final result = await _client
         .from('exams')
         .insert({'name': name, 'description': description})
@@ -57,8 +68,20 @@ class ContentService {
     return result['id'] as String;
   }
 
-  // --- Add a new topic under an exam. Returns its id. ---
+  // --- Add a topic under an exam, OR reuse the existing one with the same ---
+  // --- name in that exam. Returns its id. ---
   static Future<String> addTopic(String examId, String name) async {
+    // Look for a topic with this name already under this exam.
+    final existing = await _client
+        .from('topics')
+        .select('id')
+        .eq('exam_id', examId)
+        .eq('name', name)
+        .limit(1)
+        .maybeSingle();
+    if (existing != null) return existing['id'] as String;
+
+    // None found: create it.
     final result = await _client
         .from('topics')
         .insert({'exam_id': examId, 'name': name})
@@ -82,16 +105,4 @@ class ContentService {
 
     await _client.from('topics').update({'status': 'ready'}).eq('id', topicId);
   }
-  // --- Get topic content by topic name (used when we only have the name, not id) ---
-  // i added it for Db testing purposesm. don't change it till phase 4 ok
-  static Future<Map<String, dynamic>?> getTopicContentByName(String topicName) async {
-  if (!AppConfig.hasSupabase) return null;
-  final topic = await _client
-      .from('topics')
-      .select()
-      .eq('name', topicName)
-      .maybeSingle();
-  if (topic == null) return null;
-  return getTopicContent(topic['id'] as String);
-}
 }
