@@ -1,16 +1,16 @@
 // ===========================================================================
 // lib/widgets/ai_teacher_chat.dart
 // ---------------------------------------------------------------------------
-// The live AI Teacher chat box shown on a topic page. The student types a
-// question, the AI replies. The AI is locked to study topics only (the rules
-// live in ai_service.dart).
+// The live AI Teacher chat. Designed to feel calm and tutor-like: a friendly
+// header, tappable starter prompts when empty, clean chat bubbles, and roomy
+// spacing so students aren't overwhelmed. The AI is locked to study topics
+// only (rules live in ai_service.dart).
 // ===========================================================================
 
 import 'package:flutter/material.dart';
 import '../services/ai_service.dart';
 
 class AiTeacherChat extends StatefulWidget {
-  // Tells the AI what the student is studying, e.g. "NUST NET - Trigonometry".
   final String examContext;
   const AiTeacherChat({super.key, required this.examContext});
 
@@ -20,28 +20,35 @@ class AiTeacherChat extends StatefulWidget {
 
 class _AiTeacherChatState extends State<AiTeacherChat> {
   final _inputController = TextEditingController();
-  // Each message is {role: 'user'/'assistant', content: '...'}.
+  final _scrollController = ScrollController();
   final List<Map<String, String>> _messages = [];
-  bool _waiting = false; // true while the AI is thinking.
+  bool _waiting = false;
 
-  Future<void> _send() async {
-    final text = _inputController.text.trim();
-    if (text.isEmpty || _waiting) return;
+  static const _accent = Color(0xFF1B98E0);
 
-    // Snapshot the conversation so far (PAST turns only) to send as history.
-    // We take this BEFORE adding the new message, otherwise the new message
-    // would be sent twice: once in history and once as the message itself.
+  static const List<String> _starters = [
+    'Explain this topic in simple terms',
+    'Give me a practice question',
+    'What are common mistakes here?',
+    'Summarize the key points',
+  ];
+
+  Future<void> _sendText(String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty || _waiting) return;
+
+    // Snapshot PAST turns before adding the new message (so it isn't sent twice).
     final history = List<Map<String, String>>.from(_messages);
 
     setState(() {
-      _messages.add({'role': 'user', 'content': text});
+      _messages.add({'role': 'user', 'content': trimmed});
       _inputController.clear();
       _waiting = true;
     });
+    _scrollToBottom();
 
-    // Ask the AI, passing the recent conversation as history.
     final reply = await AiService.chat(
-      message: text,
+      message: trimmed,
       examContext: widget.examContext,
       history: history,
     );
@@ -51,80 +58,222 @@ class _AiTeacherChatState extends State<AiTeacherChat> {
       _messages.add({'role': 'assistant', 'content': reply});
       _waiting = false;
     });
+    _scrollToBottom();
+  }
+
+  void _send() => _sendText(_inputController.text);
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _inputController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // The scrolling list of chat bubbles.
-        Expanded(
-          child: _messages.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'Ask your AI teacher anything about this topic!',
-                      textAlign: TextAlign.center,
+        _header(),
+        Expanded(child: _messages.isEmpty ? _emptyState() : _messageList()),
+        if (_waiting)
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(22, 4, 22, 4),
+              child: Text(
+                'AI teacher is typing…',
+                style: TextStyle(
+                    color: Colors.black45, fontStyle: FontStyle.italic),
+              ),
+            ),
+          ),
+        _inputBar(),
+      ],
+    );
+  }
+
+  Widget _header() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            backgroundColor: _accent,
+            child: Icon(Icons.school, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('AI Teacher',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(
+                  'Here to help with ${widget.examContext}',
+                  style: const TextStyle(color: Colors.black54, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircleAvatar(
+              radius: 28,
+              backgroundColor: Color(0x1F1B98E0),
+              child: Icon(Icons.auto_stories, color: _accent, size: 28),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Ask me anything about this topic',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              "I only help with your exam prep — pick a starter below or type your own.",
+              style: TextStyle(color: Colors.black54),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: _starters
+                  .map((s) => ActionChip(
+                        label: Text(s),
+                        onPressed: _waiting ? null : () => _sendText(s),
+                        backgroundColor: const Color(0x141B98E0),
+                        side: const BorderSide(color: Color(0x331B98E0)),
+                        labelStyle: const TextStyle(
+                            color: _accent, fontWeight: FontWeight.w500),
+                      ))
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _messageList() {
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      itemCount: _messages.length,
+      itemBuilder: (context, index) {
+        final msg = _messages[index];
+        final isUser = msg['role'] == 'user';
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Row(
+            mainAxisAlignment:
+                isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!isUser) ...[
+                const CircleAvatar(
+                  radius: 14,
+                  backgroundColor: Color(0x1F1B98E0),
+                  child: Icon(Icons.school, size: 15, color: _accent),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  decoration: BoxDecoration(
+                    color: isUser ? _accent : Colors.grey.shade100,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(16),
+                      topRight: const Radius.circular(16),
+                      bottomLeft: Radius.circular(isUser ? 16 : 4),
+                      bottomRight: Radius.circular(isUser ? 4 : 16),
                     ),
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = _messages[index];
-                    final isUser = msg['role'] == 'user';
-                    return Align(
-                      alignment: isUser
-                          ? Alignment.centerRight
-                          : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isUser
-                              ? Colors.blue.shade100
-                              : Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        constraints: const BoxConstraints(maxWidth: 500),
-                        child: Text(msg['content'] ?? ''),
-                      ),
-                    );
-                  },
-                ),
-        ),
-        // Shows a small 'thinking' indicator while waiting.
-        if (_waiting)
-          const Padding(
-            padding: EdgeInsets.all(8),
-            child: Text('AI teacher is thinking...'),
-          ),
-        // The input row: text box + send button.
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _inputController,
-                  decoration: const InputDecoration(
-                    hintText: 'Type your question...',
-                    border: OutlineInputBorder(),
+                  child: Text(
+                    msg['content'] ?? '',
+                    style: TextStyle(
+                      color: isUser ? Colors.white : Colors.black87,
+                      height: 1.45,
+                      fontSize: 14.5,
+                    ),
                   ),
-                  onSubmitted: (_) => _send(),
                 ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.send),
-                onPressed: _waiting ? null : _send,
               ),
             ],
           ),
-        ),
-      ],
+        );
+      },
+    );
+  }
+
+  Widget _inputBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _inputController,
+              decoration: InputDecoration(
+                hintText: 'Type your question…',
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onSubmitted: (_) => _send(),
+            ),
+          ),
+          const SizedBox(width: 8),
+          CircleAvatar(
+            backgroundColor: _accent,
+            child: IconButton(
+              icon: const Icon(Icons.send, color: Colors.white, size: 20),
+              onPressed: _waiting ? null : _send,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

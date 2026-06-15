@@ -3,16 +3,10 @@
 // ---------------------------------------------------------------------------
 // This is the BRAIN connector. It sends messages to the AI and gets answers.
 //
-// TWO IMPORTANT IDEAS in this file:
-//
-// 1) PLUGGABLE PROVIDER:
-//    Right now it uses Groq (free, for testing). Later, to use paid Claude,
-//    you ONLY change AI_PROVIDER=claude in your .env file. No code changes.
-//
-// 2) SECURITY LOCK (study-only):
-//    Every request includes a strict instruction telling the AI it may ONLY
-//    help with exam/study topics and must politely refuse anything else
-//    (coding help, jokes, personal chat, etc.). See _studyGuardrails below.
+// 1) PLUGGABLE PROVIDER: uses Groq now; switch to Claude by setting
+//    AI_PROVIDER=claude in your .env file. No code changes.
+// 2) SECURITY LOCK (study-only): every chat request includes strict rules so
+//    the AI only helps with exam/study topics. See _studyGuardrails below.
 // ===========================================================================
 
 import 'dart:convert';
@@ -20,8 +14,7 @@ import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 
 class AiService {
-  // ----- The security rules sent to the AI on EVERY request. -----
-  // This is what stops students misusing the chatbot for non-study things.
+  // ----- The security rules sent to the AI on EVERY chat request. -----
   static String _studyGuardrails(String examContext) {
     return '''
 You are THEETIFY, a friendly expert teacher that ONLY helps students prepare
@@ -42,8 +35,6 @@ Current study context: $examContext
   }
 
   // ----- A quick local pre-check before we even call the AI. -----
-  // This blocks obvious off-topic requests early, which also saves money.
-  // It is a helper layer; the main protection is the guardrails above.
   static bool looksOffTopic(String message) {
     final lower = message.toLowerCase();
     const blocked = [
@@ -54,31 +45,24 @@ Current study context: $examContext
   }
 
   // ----- Main function: send a chat message, get the AI's reply. -----
-  // 'history' is the past conversation. 'examContext' tells the AI what the
-  // student is studying right now (e.g. "NUST NET - Trigonometry").
   static Future<String> chat({
     required String message,
     required String examContext,
     List<Map<String, String>> history = const [],
   }) async {
-    // If the AI key is missing, explain instead of crashing.
     if (!AppConfig.hasAi) {
       return 'The AI is not set up yet. Add your AI key to the .env file.';
     }
-
-    // Early, free block for clearly off-topic requests.
     if (looksOffTopic(message)) {
       return "I can only help with your exam preparation. Let's get back to studying!";
     }
 
-    // Build the full message list: rules first, then history, then new message.
     final messages = <Map<String, String>>[
       {'role': 'system', 'content': _studyGuardrails(examContext)},
       ...history,
       {'role': 'user', 'content': message},
     ];
 
-    // Choose which provider to call based on your .env setting.
     if (AppConfig.aiProvider == 'claude') {
       return _callClaude(messages);
     }
@@ -94,7 +78,6 @@ Current study context: $examContext
         'Content-Type': 'application/json',
       },
       body: jsonEncode({
-        // A capable, free model on Groq. Can be changed later.
         'model': 'llama-3.3-70b-versatile',
         'messages': messages,
         'temperature': 0.5,
@@ -105,7 +88,6 @@ Current study context: $examContext
 
   // ----- Talk to Claude (paid, for later). -----
   static Future<String> _callClaude(List<Map<String, String>> messages) async {
-    // Claude separates the system rules from the chat messages.
     final systemText = messages.first['content'] ?? '';
     final chatMessages = messages
         .skip(1)
@@ -144,15 +126,9 @@ Current study context: $examContext
   }
 
   // ==========================================================================
-  // CONTENT GENERATION
-  // --------------------------------------------------------------------------
-  // These functions power the Admin Dashboard's "type a topic -> Generate"
-  // feature. Each one asks the AI to produce ONE type of study content for a
-  // given topic and exam. They all reuse the same _generate helper below.
+  // CONTENT GENERATION (powers the Admin "type a topic -> Generate" feature)
   // ==========================================================================
 
-  // A general helper: send one instruction to the AI and get back plain text.
-  // Unlike chat(), this is for generating content, not student conversation.
   static Future<String> _generate(String instruction) async {
     if (!AppConfig.hasAi) {
       return 'AI not set up. Add your AI key to the .env file.';
@@ -171,17 +147,13 @@ Current study context: $examContext
   }
 
   // 1) Interactive HTML lesson.
-static Future<String> generateHtmlLesson(String topic, String exam) {
-  return _generate(
-    'Create an interactive, in-depth HTML lesson for the topic "$topic" '
-    'for the "$exam" exam. '
-    'Return ONLY a complete HTML document body (no <html>, <head>, or <body> tags). '
-    'Use <h2>, <h3>, <p>, <ul>, <li>, <strong>, <em>, <table> tags for structure. '
-    'Include: introduction, key concepts, formulas, examples with solutions, '
-    'and practice problems. Make it visually rich with proper HTML formatting. '
-    'Do NOT use markdown. Do NOT include backticks. Return pure HTML only.',
-  );
-}
+  static Future<String> generateHtmlLesson(String topic, String exam) {
+    return _generate(
+      'Create an interactive, in-depth HTML lesson for the topic "$topic" '
+      'for the "$exam" exam. Use clear headings, examples, and include '
+      'lesser-known but important details. Return ONLY valid HTML (no markdown).',
+    );
+  }
 
   // 2) Deep, in-depth notes.
   static Future<String> generateDeepNotes(String topic, String exam) {
@@ -200,16 +172,7 @@ static Future<String> generateHtmlLesson(String topic, String exam) {
     );
   }
 
-  // 4) AI video lecture script (used later to make narrated slides).
-  static Future<String> generateVideoScript(String topic, String exam) {
-    return _generate(
-      'Write a clear spoken video-lecture script teaching "$topic" for the '
-      '"$exam" exam. Break it into short slides with a heading and narration '
-      'for each slide.',
-    );
-  }
-
-  // 5) A quiz, returned as JSON text the app can read.
+  // 4) A quiz, returned as JSON text the app can read.
   static Future<String> generateQuiz(String topic, String exam) {
     return _generate(
       'Create a 10-question multiple-choice quiz for "$topic" for the "$exam" '
@@ -219,4 +182,3 @@ static Future<String> generateHtmlLesson(String topic, String exam) {
     );
   }
 }
-

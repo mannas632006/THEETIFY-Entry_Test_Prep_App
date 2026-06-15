@@ -1,19 +1,11 @@
 // ===========================================================================
 // lib/screens/admin_screen.dart
 // ---------------------------------------------------------------------------
-// THE ADMIN DASHBOARD (for YOU, the owner).
+// THE ADMIN DASHBOARD (owner only — locked to AuthService.adminEmail).
 //
-// ACCESS: This screen is now locked. When it opens, it checks whether the
-// logged-in user is the admin (see AuthService.adminEmail). Anyone else sees
-// an "Access Denied" message and cannot generate or publish content.
-//
-// What you do here, in plain steps:
-//   1. Pick which exam the topic belongs to (or type a new exam name).
-//   2. Type the topic name (e.g. "Trigonometry").
-//   3. Press "Generate Everything".
-//   4. The app uses AI to create the lesson, notes, crash notes, quiz, and
-//      video script automatically. You see progress messages as it works.
-//   5. Review the result, then press "Publish" to make it live for students.
+// Exam and Topic are now "type new OR pick from existing": start typing and a
+// dropdown of matching existing names appears, or type a brand-new name. When
+// an existing exam is chosen, the Topic dropdown fills with that exam's topics.
 // ===========================================================================
 
 import 'package:flutter/material.dart';
@@ -32,28 +24,77 @@ class AdminScreen extends StatefulWidget {
 }
 
 class _AdminScreenState extends State<AdminScreen> {
-  final _examController = TextEditingController();
-  final _topicController = TextEditingController();
-
-  // Whether the current user is allowed in. Checked once when the screen opens.
   late Future<bool> _accessFuture;
 
-  bool _busy = false;            // true while generating.
-  String _progress = '';         // current progress message.
-  Map<String, dynamic>? _result; // the generated content, before publishing.
+  List<Map<String, dynamic>> _exams = [];
+  List<String> _examNames = [];
+  List<String> _topicNames = [];
+  String _examName = '';
+  String _topicName = '';
+  String _topicsExamId = '';
+
+  bool _busy = false;
+  String _progress = '';
+  Map<String, dynamic>? _result;
 
   @override
   void initState() {
     super.initState();
     _accessFuture = AuthService.isAdmin();
+    _loadExams();
   }
 
-  // Step 1+2+3: generate all content for the typed topic.
-  Future<void> _generate() async {
-    final exam = _examController.text.trim();
-    final topic = _topicController.text.trim();
+  Future<void> _loadExams() async {
+    try {
+      final exams = await ContentService.getExams();
+      if (!mounted) return;
+      setState(() {
+        _exams = exams;
+        _examNames = exams
+            .map((e) => (e['name'] ?? '').toString())
+            .where((s) => s.isNotEmpty)
+            .toList();
+      });
+    } catch (_) {}
+  }
 
-    // Basic checks so nothing breaks.
+  // When the exam text matches an existing exam, load its topics for the
+  // topic dropdown. New exam name -> clear topic suggestions.
+  void _onExamChanged(String value) {
+    _examName = value;
+    final v = value.trim().toLowerCase();
+    final match = _exams.firstWhere(
+      (e) => (e['name'] ?? '').toString().toLowerCase() == v,
+      orElse: () => <String, dynamic>{},
+    );
+    if (match.isNotEmpty) {
+      final id = match['id']?.toString() ?? '';
+      if (id.isNotEmpty && id != _topicsExamId) {
+        _topicsExamId = id;
+        _loadTopicsFor(id);
+      }
+    } else if (_topicNames.isNotEmpty) {
+      _topicsExamId = '';
+      setState(() => _topicNames = []);
+    }
+  }
+
+  Future<void> _loadTopicsFor(String examId) async {
+    try {
+      final topics = await ContentService.getTopics(examId);
+      if (!mounted) return;
+      setState(() {
+        _topicNames = topics
+            .map((t) => (t['name'] ?? '').toString())
+            .where((s) => s.isNotEmpty)
+            .toList();
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _generate() async {
+    final exam = _examName.trim();
+    final topic = _topicName.trim();
     if (exam.isEmpty || topic.isEmpty) {
       _showMessage('Please enter both an exam name and a topic name.');
       return;
@@ -62,13 +103,11 @@ class _AdminScreenState extends State<AdminScreen> {
       _showMessage('AI is not set up. Add your AI key to the .env file.');
       return;
     }
-
     setState(() {
       _busy = true;
       _result = null;
       _progress = 'Starting...';
     });
-
     try {
       final result = await GenerationService.generateEverything(
         topic: topic,
@@ -83,29 +122,24 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  // Step 5: save everything to the database so students can see it.
   Future<void> _publish() async {
     if (_result == null) return;
     if (!AppConfig.hasSupabase) {
       _showMessage('Database not set up. Add your Supabase keys to .env.');
       return;
     }
-
     setState(() => _busy = true);
     try {
-      final exam = _examController.text.trim();
-      final topic = _topicController.text.trim();
-
-      // Create the exam and topic rows, then save the generated content.
+      final exam = _examName.trim();
+      final topic = _topicName.trim();
       final examId = await ContentService.addExam(exam);
       final topicId = await ContentService.addTopic(examId, topic);
-
       final toSave = Map<String, dynamic>.from(_result!);
-      toSave['approved'] = true; // Publishing means approved.
+      toSave['approved'] = true;
       await ContentService.saveTopicContent(topicId, toSave);
-
       _showMessage('Published! "$topic" is now live for students.');
       setState(() => _result = null);
+      _loadExams(); // refresh dropdown suggestions
     } catch (e) {
       _showMessage('Publishing failed: $e');
     } finally {
@@ -114,8 +148,7 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   void _showMessage(String text) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(text)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
   @override
@@ -125,22 +158,16 @@ class _AdminScreenState extends State<AdminScreen> {
       body: FutureBuilder<bool>(
         future: _accessFuture,
         builder: (context, snapshot) {
-          // Still checking who you are.
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          // Not the admin: block access.
-          if (snapshot.data != true) {
-            return _accessDenied();
-          }
-          // Admin confirmed: show the real dashboard.
+          if (snapshot.data != true) return _accessDenied();
           return _dashboard();
         },
       ),
     );
   }
 
-  // Shown to anyone who is not the admin.
   Widget _accessDenied() {
     return Center(
       child: Padding(
@@ -150,15 +177,11 @@ class _AdminScreenState extends State<AdminScreen> {
           children: [
             const Icon(Icons.lock_outline, size: 48),
             const SizedBox(height: 16),
-            const Text(
-              'Access Denied',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            const Text('Access Denied',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text(
-              'This area is for the site owner only.',
-              textAlign: TextAlign.center,
-            ),
+            const Text('This area is for the site owner only.',
+                textAlign: TextAlign.center),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => context.go('/login'),
@@ -170,96 +193,158 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  // The real admin dashboard (only built for the admin).
   Widget _dashboard() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Create study content automatically',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          // Exam name input.
-          TextField(
-            controller: _examController,
-            decoration: const InputDecoration(
-              labelText: 'Exam name (e.g. NUST NET)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Topic name input.
-          TextField(
-            controller: _topicController,
-            decoration: const InputDecoration(
-              labelText: 'Topic name (e.g. Trigonometry)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Generate button.
-          ElevatedButton.icon(
-            onPressed: _busy ? null : _generate,
-            icon: const Icon(Icons.auto_awesome),
-            label: const Text('Generate Everything'),
-          ),
-          const SizedBox(height: 16),
-
-          // Progress / spinner while working.
-          if (_busy)
-            Row(
-              children: [
-                const SizedBox(
-                  height: 18,
-                  width: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Create study content',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              const Text(
+                'Pick an existing exam/topic or type a new name, then generate.',
+                style: TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 20),
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: Colors.grey.shade200),
                 ),
-                const SizedBox(width: 12),
-                Expanded(child: Text(_progress)),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _label('Exam'),
+                      const SizedBox(height: 6),
+                      _examField(),
+                      const SizedBox(height: 18),
+                      _label('Topic'),
+                      const SizedBox(height: 6),
+                      _topicField(),
+                      const SizedBox(height: 22),
+                      ElevatedButton.icon(
+                        onPressed: _busy ? null : _generate,
+                        icon: const Icon(Icons.auto_awesome),
+                        label: const Text('Generate Everything'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (_busy)
+                Row(
+                  children: [
+                    const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(_progress)),
+                  ],
+                ),
+              if (_result != null && !_busy) ...[
+                const SizedBox(height: 8),
+                const Text('Review the generated content',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                _preview('Interactive Lesson (HTML)', _result!['html_lesson']),
+                _preview('Deep Notes', _result!['deep_notes']),
+                _preview('Crash Notes (3-hour)', _result!['crash_notes']),
+                _preview('Quiz (JSON)', _result!['quiz_json']),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _publish,
+                      icon: const Icon(Icons.publish),
+                      label: const Text('Publish (make live)'),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: _generate,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Regenerate'),
+                    ),
+                  ],
+                ),
               ],
-            ),
-
-          // Review area: show previews of what was generated.
-          if (_result != null && !_busy) ...[
-            const Divider(height: 32),
-            const Text('Review the generated content:',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            _preview('Interactive Lesson (HTML)', _result!['html_lesson']),
-            _preview('Deep Notes', _result!['deep_notes']),
-            _preview('Crash Notes (3-hour)', _result!['crash_notes']),
-            _preview('Video Script', _result!['video_script']),
-            _preview('Quiz (JSON)', _result!['quiz_json']),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _publish,
-                  icon: const Icon(Icons.publish),
-                  label: const Text('Publish (make live)'),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
-                  onPressed: _generate,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Regenerate'),
-                ),
-              ],
-            ),
-          ],
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  // A collapsible preview box for one piece of generated content.
+  Widget _label(String t) =>
+      Text(t, style: const TextStyle(fontWeight: FontWeight.w600));
+
+  InputDecoration _dec(String hint) => InputDecoration(
+        hintText: hint,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      );
+
+  Widget _examField() {
+    return Autocomplete<String>(
+      optionsBuilder: (textEditingValue) {
+        final input = textEditingValue.text.toLowerCase();
+        if (input.isEmpty) return _examNames;
+        return _examNames.where((o) => o.toLowerCase().contains(input));
+      },
+      onSelected: _onExamChanged,
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: _dec('e.g. NUST NET'),
+          onChanged: _onExamChanged,
+          onSubmitted: (_) => onFieldSubmitted(),
+        );
+      },
+    );
+  }
+
+  Widget _topicField() {
+    return Autocomplete<String>(
+      optionsBuilder: (textEditingValue) {
+        final input = textEditingValue.text.toLowerCase();
+        if (input.isEmpty) return _topicNames;
+        return _topicNames.where((o) => o.toLowerCase().contains(input));
+      },
+      onSelected: (v) => _topicName = v,
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: _dec('e.g. Trigonometry'),
+          onChanged: (v) => _topicName = v,
+          onSubmitted: (_) => onFieldSubmitted(),
+        );
+      },
+    );
+  }
+
   Widget _preview(String title, String? content) {
     return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
       child: ExpansionTile(
-        title: Text(title),
+        title: Text(title,
+            style: const TextStyle(fontWeight: FontWeight.w600)),
         children: [
           Padding(
             padding: const EdgeInsets.all(12),

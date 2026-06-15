@@ -1,16 +1,14 @@
 // ===========================================================================
 // lib/screens/topic_screen.dart
 // ---------------------------------------------------------------------------
-// The heart of the app: a single topic's study page. It LOADS the generated
-// content for this topic from the database and shows it across tabs:
-//   - Lesson (interactive HTML inside a real iframe, so animations/JS work)
+// A single topic's study page. Loads the generated content for this topic and
+// shows it across tabs:
+//   - Lesson (interactive HTML inside a real iframe)
 //   - Deep Notes (Markdown rendered as HTML)
-//   - Crash Notes (3-hour revision, Markdown rendered as HTML)
+//   - Crash Notes (Markdown rendered as HTML)
 //   - Quiz (interactive)
 //   - AI Teacher (live chat)
-//   - Videos (YouTube search + AI video script)
-//
-// Content loads using the topic id passed in from the topic list.
+//   - Videos (YouTube search)
 // ===========================================================================
 
 import 'package:flutter/material.dart';
@@ -24,8 +22,6 @@ import '../widgets/quiz_view.dart';
 import '../widgets/videos_view.dart';
 
 class TopicScreen extends StatefulWidget {
-  // We accept BOTH a topic name (to show) and an optional topic id (to load
-  // content from the database). When opened from the topic list, the id is set.
   final String topicName;
   final String? topicId;
   const TopicScreen({super.key, required this.topicName, this.topicId});
@@ -35,13 +31,11 @@ class TopicScreen extends StatefulWidget {
 }
 
 class _TopicScreenState extends State<TopicScreen> {
-  // Holds the loaded content for this topic (null until loaded).
   Future<Map<String, dynamic>?>? _contentFuture;
 
   @override
   void initState() {
     super.initState();
-    // If we have a topic id, load its saved content from the database.
     final id = widget.topicId;
     if (id != null && id.isNotEmpty) {
       _contentFuture = ContentService.getTopicContent(id);
@@ -72,20 +66,16 @@ class _TopicScreenState extends State<TopicScreen> {
         body: FutureBuilder<Map<String, dynamic>?>(
           future: _contentFuture,
           builder: (context, snapshot) {
-            // While loading content from the database, show a spinner.
             if (hasId &&
                 snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final content = snapshot.data; // may be null if nothing saved yet.
-
-            // Pull the fields out once, as typed strings, for clarity.
+            final content = snapshot.data;
             final htmlLesson = content?['html_lesson'] as String?;
             final deepNotes = content?['deep_notes'] as String?;
             final crashNotes = content?['crash_notes'] as String?;
             final quizJson = content?['quiz_json'] as String?;
-            final videoScript = content?['video_script'] as String?;
 
             return TabBarView(
               children: [
@@ -112,9 +102,8 @@ class _TopicScreenState extends State<TopicScreen> {
                     : _empty('The quiz has not been generated yet.'),
                 // 5) Live AI Teacher chat, locked to study topics only.
                 AiTeacherChat(examContext: widget.topicName),
-                // 6) Videos: YouTube search + AI script.
-                VideosView(
-                    topicName: widget.topicName, videoScript: videoScript),
+                // 6) Videos: YouTube search.
+                VideosView(topicName: widget.topicName),
               ],
             );
           },
@@ -123,11 +112,8 @@ class _TopicScreenState extends State<TopicScreen> {
     );
   }
 
-  // True when a string exists and isn't just whitespace.
   bool _hasText(String? value) => value != null && value.trim().isNotEmpty;
 
-  // Wraps content in scrolling + padding, and limits the width on wide
-  // screens so long lines stay readable. On phones it fills the screen.
   Widget _scrollable(Widget child) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -140,7 +126,6 @@ class _TopicScreenState extends State<TopicScreen> {
     );
   }
 
-  // A centered friendly message for empty tabs.
   Widget _empty(String text) {
     return Center(
       child: Padding(
