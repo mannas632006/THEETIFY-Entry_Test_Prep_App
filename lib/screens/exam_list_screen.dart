@@ -2,11 +2,7 @@
 // lib/screens/exam_list_screen.dart
 // ---------------------------------------------------------------------------
 // Shows the list of exams a student can prepare for, loaded LIVE from the
-// Supabase database. If the database has no exams yet, it shows a friendly
-// message telling you to add some from the Admin Dashboard.
-//
-// Tapping an exam now opens that exam's TOPIC LIST (not a hardcoded sample),
-// passing the exam id so the next screen can load its real topics.
+// Supabase database. Tapping an exam opens that exam's TOPIC LIST.
 // ===========================================================================
 
 import 'package:flutter/material.dart';
@@ -23,13 +19,11 @@ class ExamListScreen extends StatefulWidget {
 }
 
 class _ExamListScreenState extends State<ExamListScreen> {
-  // This 'future' holds the exams once they finish loading from the database.
   late Future<List<Map<String, dynamic>>> _examsFuture;
 
   @override
   void initState() {
     super.initState();
-    // Start loading the exams as soon as the screen opens.
     _examsFuture = ContentService.getExams();
   }
 
@@ -49,7 +43,6 @@ class _ExamListScreenState extends State<ExamListScreen> {
       appBar: AppBar(
         title: const Text('Choose an Exam'),
         actions: [
-          // A logout button in the top-right corner.
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
@@ -60,15 +53,12 @@ class _ExamListScreenState extends State<ExamListScreen> {
           ),
         ],
       ),
-      // FutureBuilder shows a spinner while loading, then the result.
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _examsFuture,
         builder: (context, snapshot) {
-          // Still loading: show a spinner.
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          // Something went wrong: show the error.
           if (snapshot.hasError) {
             return Center(
               child: Padding(
@@ -80,38 +70,67 @@ class _ExamListScreenState extends State<ExamListScreen> {
 
           final exams = snapshot.data ?? [];
 
-          // No exams yet: friendly empty message.
           if (exams.isEmpty) {
             return const Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text(
-                  'No exams yet.\nAdd some from the Admin Dashboard.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.school_outlined, size: 48, color: Colors.black26),
+                    SizedBox(height: 12),
+                    Text(
+                      'No exams yet.\nAdd some from the Admin Dashboard.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: Colors.black54),
+                    ),
+                  ],
                 ),
               ),
             );
           }
 
-          // Show the exams as a tappable list.
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: exams.length,
-            itemBuilder: (context, index) {
-              final exam = exams[index];
-              return Card(
-                child: ListTile(
-                  title: Text(exam['name'] ?? 'Unnamed exam'),
-                  subtitle: exam['description'] != null
-                      ? Text(exam['description'])
-                      : null,
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  // Open this exam's topic list.
-                  onTap: () => _openExam(exam),
-                ),
-              );
-            },
+          // Centered and width-limited so it looks good on wide screens.
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: exams.length,
+                itemBuilder: (context, index) {
+                  final exam = exams[index];
+                  final desc = exam['description']?.toString();
+                  return Card(
+                    elevation: 0,
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0x1F1B98E0),
+                        child: Icon(Icons.school, color: Color(0xFF1B98E0)),
+                      ),
+                      title: Text(
+                        exam['name'] ?? 'Unnamed exam',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 16),
+                      ),
+                      subtitle: Text(
+                        (desc != null && desc.isNotEmpty)
+                            ? desc
+                            : 'Tap to see topics',
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () => _openExam(exam),
+                    ),
+                  );
+                },
+              ),
+            ),
           );
         },
       ),

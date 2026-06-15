@@ -8,7 +8,7 @@
 //   - Crash Notes (3-hour revision, Markdown rendered as HTML)
 //   - Quiz (interactive)
 //   - AI Teacher (live chat)
-//   - Videos (coming next)
+//   - Videos (YouTube search + AI video script)
 //
 // Content loads using the topic id passed in from the topic list.
 // ===========================================================================
@@ -21,6 +21,7 @@ import '../utils/markdown.dart';
 import '../widgets/ai_teacher_chat.dart';
 import '../widgets/html_iframe.dart';
 import '../widgets/quiz_view.dart';
+import '../widgets/videos_view.dart';
 
 class TopicScreen extends StatefulWidget {
   // We accept BOTH a topic name (to show) and an optional topic id (to load
@@ -84,12 +85,11 @@ class _TopicScreenState extends State<TopicScreen> {
             final deepNotes = content?['deep_notes'] as String?;
             final crashNotes = content?['crash_notes'] as String?;
             final quizJson = content?['quiz_json'] as String?;
+            final videoScript = content?['video_script'] as String?;
 
             return TabBarView(
               children: [
                 // 1) Interactive HTML lesson inside a real iframe.
-                //    (Not wrapped in a scroll view: the iframe fills the tab
-                //    and the lesson page scrolls inside itself.)
                 _hasText(htmlLesson)
                     ? HtmlIframe(html: htmlLesson!)
                     : _empty('The lesson has not been generated yet.'),
@@ -112,8 +112,9 @@ class _TopicScreenState extends State<TopicScreen> {
                     : _empty('The quiz has not been generated yet.'),
                 // 5) Live AI Teacher chat, locked to study topics only.
                 AiTeacherChat(examContext: widget.topicName),
-                // 6) Videos (coming next).
-                _empty('YouTube + AI video lectures will appear here.'),
+                // 6) Videos: YouTube search + AI script.
+                VideosView(
+                    topicName: widget.topicName, videoScript: videoScript),
               ],
             );
           },
@@ -125,11 +126,17 @@ class _TopicScreenState extends State<TopicScreen> {
   // True when a string exists and isn't just whitespace.
   bool _hasText(String? value) => value != null && value.trim().isNotEmpty;
 
-  // Wraps content in scrolling + padding so long text reads nicely.
+  // Wraps content in scrolling + padding, and limits the width on wide
+  // screens so long lines stay readable. On phones it fills the screen.
   Widget _scrollable(Widget child) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: child,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 820),
+          child: child,
+        ),
+      ),
     );
   }
 
