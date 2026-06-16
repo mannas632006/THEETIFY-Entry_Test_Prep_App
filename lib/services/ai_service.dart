@@ -1,12 +1,10 @@
 // ===========================================================================
 // lib/services/ai_service.dart
 // ---------------------------------------------------------------------------
-// This is the BRAIN connector. It sends messages to the AI and gets answers.
-//
-// 1) PLUGGABLE PROVIDER: uses Groq now; switch to Claude by setting
-//    AI_PROVIDER=claude in your .env file. No code changes.
-// 2) SECURITY LOCK (study-only): every chat request includes strict rules so
-//    the AI only helps with exam/study topics. See _studyGuardrails below.
+// The BRAIN connector. Sends messages to the AI and gets answers.
+//   1) PLUGGABLE PROVIDER: Groq now; switch to Claude via AI_PROVIDER in .env.
+//   2) SECURITY LOCK (study-only): chat requests include strict rules.
+// Also powers content generation and the AI study timetable.
 // ===========================================================================
 
 import 'dart:convert';
@@ -14,7 +12,6 @@ import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 
 class AiService {
-  // ----- The security rules sent to the AI on EVERY chat request. -----
   static String _studyGuardrails(String examContext) {
     return '''
 You are THEETIFY, a friendly expert teacher that ONLY helps students prepare
@@ -34,7 +31,6 @@ Current study context: $examContext
 ''';
   }
 
-  // ----- A quick local pre-check before we even call the AI. -----
   static bool looksOffTopic(String message) {
     final lower = message.toLowerCase();
     const blocked = [
@@ -44,7 +40,6 @@ Current study context: $examContext
     return blocked.any(lower.contains);
   }
 
-  // ----- Main function: send a chat message, get the AI's reply. -----
   static Future<String> chat({
     required String message,
     required String examContext,
@@ -69,7 +64,6 @@ Current study context: $examContext
     return _callGroq(messages);
   }
 
-  // ----- Talk to Groq (free, for testing). -----
   static Future<String> _callGroq(List<Map<String, String>> messages) async {
     final response = await http.post(
       Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
@@ -86,7 +80,6 @@ Current study context: $examContext
     return _extractOpenAiStyleReply(response);
   }
 
-  // ----- Talk to Claude (paid, for later). -----
   static Future<String> _callClaude(List<Map<String, String>> messages) async {
     final systemText = messages.first['content'] ?? '';
     final chatMessages = messages
@@ -116,7 +109,6 @@ Current study context: $examContext
     return data['content'][0]['text'] ?? 'No response.';
   }
 
-  // ----- Reads the reply from Groq/OpenAI-style responses. -----
   static String _extractOpenAiStyleReply(http.Response response) {
     if (response.statusCode != 200) {
       return 'Sorry, the AI had a problem. Please try again.';
@@ -126,7 +118,7 @@ Current study context: $examContext
   }
 
   // ==========================================================================
-  // CONTENT GENERATION (powers the Admin "type a topic -> Generate" feature)
+  // CONTENT GENERATION
   // ==========================================================================
 
   static Future<String> _generate(String instruction) async {
@@ -146,7 +138,6 @@ Current study context: $examContext
     return _callGroq(messages);
   }
 
-  // 1) Interactive HTML lesson.
   static Future<String> generateHtmlLesson(String topic, String exam) {
     return _generate(
       'Create an interactive, in-depth HTML lesson for the topic "$topic" '
@@ -155,7 +146,6 @@ Current study context: $examContext
     );
   }
 
-  // 2) Deep, in-depth notes.
   static Future<String> generateDeepNotes(String topic, String exam) {
     return _generate(
       'Write extensive, in-depth study notes for "$topic" for the "$exam" exam. '
@@ -163,7 +153,6 @@ Current study context: $examContext
     );
   }
 
-  // 3) 3-hour crash revision notes.
   static Future<String> generateCrashNotes(String topic, String exam) {
     return _generate(
       'Write concise "crash revision" notes for "$topic" for the "$exam" exam '
@@ -172,7 +161,6 @@ Current study context: $examContext
     );
   }
 
-  // 4) A quiz, returned as JSON text the app can read.
   static Future<String> generateQuiz(String topic, String exam) {
     return _generate(
       'Create a 10-question multiple-choice quiz for "$topic" for the "$exam" '
@@ -180,5 +168,45 @@ Current study context: $examContext
       '"question", "options" (list of 4 strings), and "answer" (the correct '
       'option text). No extra text.',
     );
+  }
+
+  // Estimate how long this topic takes to study, in minutes (returns text;
+  // the caller parses out the number).
+  static Future<String> generateEstimatedMinutes(String topic, String exam) {
+    return _generate(
+      'Estimate how many minutes a typical student needs to fully study and '
+      'understand the topic "$topic" for the "$exam" exam. '
+      'Reply with ONLY a single integer (the number of minutes), nothing else.',
+    );
+  }
+
+  // Build a study timetable. Returns ONLY JSON text the app renders:
+  // a list of {"date":"YYYY-MM-DD","topics":["..."],"note":"..."}.
+  static Future<String> generateTimetable({
+    required String exam,
+    required String deadline,
+    required List<String> remainingTopics,
+    int? dailyHours,
+  }) {
+    final hoursLine = dailyHours != null
+        ? 'The student can study about $dailyHours hours per day.'
+        : 'The student did not specify daily hours; assume a reasonable amount.';
+    return _generate(
+      'Create a day-by-day study timetable for the "$exam" exam. '
+      'Today is ${_today()}. The exam is on $deadline. '
+      'Spread these remaining topics across the available days, hardest first '
+      'and leaving the last 1-2 days for revision: ${remainingTopics.join(", ")}. '
+      '$hoursLine '
+      'Return ONLY valid JSON: a list of objects, each with keys "date" '
+      '(YYYY-MM-DD), "topics" (list of topic name strings for that day), and '
+      '"note" (a short tip, may be empty). No extra text, no markdown.',
+    );
+  }
+
+  static String _today() {
+    final d = DateTime.now();
+    return '${d.year.toString().padLeft(4, '0')}-'
+        '${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
   }
 }

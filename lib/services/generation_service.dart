@@ -1,16 +1,13 @@
 // ===========================================================================
 // lib/services/generation_service.dart
 // ---------------------------------------------------------------------------
-// Ties everything together for the "type a topic -> Generate" feature. It
-// calls the AI to make every content type for a topic, then hands the results
-// back so the Admin can review them before saving.
+// Generates every content type for a topic for the Admin "Generate" feature,
+// including an estimated study time (in minutes) for the topic.
 // ===========================================================================
 
 import 'ai_service.dart';
 
 class GenerationService {
-  // Generate ALL content for one topic at once.
-  // Returns a map ready to be saved to the database (after you approve it).
   static Future<Map<String, dynamic>> generateEverything({
     required String topic,
     required String exam,
@@ -28,6 +25,10 @@ class GenerationService {
     onProgress?.call('Creating the quiz...');
     final quiz = await AiService.generateQuiz(topic, exam);
 
+    onProgress?.call('Estimating study time...');
+    final minsText = await AiService.generateEstimatedMinutes(topic, exam);
+    final estimatedMinutes = _firstInt(minsText) ?? 30;
+
     onProgress?.call('Done!');
 
     // These keys match columns in the 'topic_content' table.
@@ -36,8 +37,16 @@ class GenerationService {
       'deep_notes': deepNotes,
       'crash_notes': crashNotes,
       'quiz_json': quiz,
+      'estimated_minutes': estimatedMinutes,
       'ai_teacher_context': '$exam - $topic',
-      'approved': false, // You approve it from the dashboard before students see it.
+      'approved': false,
     };
+  }
+
+  // Pulls the first whole number out of a string (e.g. "About 45 min" -> 45).
+  static int? _firstInt(String text) {
+    final match = RegExp(r'\d+').firstMatch(text);
+    if (match == null) return null;
+    return int.tryParse(match.group(0)!);
   }
 }
