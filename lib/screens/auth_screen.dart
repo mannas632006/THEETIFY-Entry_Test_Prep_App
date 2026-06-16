@@ -1,9 +1,8 @@
 // ===========================================================================
 // lib/screens/auth_screen.dart
 // ---------------------------------------------------------------------------
-// One screen that handles BOTH login and signup. A toggle at the bottom lets
-// the user switch between 'Log in' and 'Create account'. Kept deliberately
-// simple and friendly.
+// One screen for BOTH login and signup. After success, the student lands on
+// their Home dashboard.
 // ===========================================================================
 
 import 'package:flutter/material.dart';
@@ -20,17 +19,14 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  // Controllers hold what the user types in the email/password boxes.
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  bool _isLoginMode = true; // true = log in, false = create account.
-  bool _busy = false;       // true while we wait for Supabase to respond.
-  String? _error;           // an error message to show, if any.
+  bool _isLoginMode = true;
+  bool _busy = false;
+  String? _error;
 
-  // Runs when the user presses the main button.
   Future<void> _submit() async {
-    // Safety: if Supabase keys are missing, explain instead of crashing.
     if (!AppConfig.hasSupabase) {
       setState(() => _error =
           'Login is not set up yet. Add your Supabase keys to the .env file.');
@@ -45,7 +41,6 @@ class _AuthScreenState extends State<AuthScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
-    // Call signUp or signIn depending on the mode.
     final error = _isLoginMode
         ? await AuthService.signIn(email, password)
         : await AuthService.signUp(email, password);
@@ -54,8 +49,8 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _busy = false);
 
     if (error == null) {
-      // Success: go to the exam list.
-      context.go('/exams');
+      // Success: go to the student's home dashboard.
+      context.go('/dashboard');
     } else {
       setState(() => _error = error);
     }
@@ -73,7 +68,6 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Email box.
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -83,7 +77,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Password box (hidden text).
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
@@ -93,14 +86,12 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Show an error message if there is one.
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Text(_error!,
                         style: const TextStyle(color: Colors.red)),
                   ),
-                // Main action button (shows a spinner while busy).
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -116,7 +107,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Toggle between login and signup.
                 TextButton(
                   onPressed: () =>
                       setState(() => _isLoginMode = !_isLoginMode),
