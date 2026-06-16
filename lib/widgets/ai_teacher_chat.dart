@@ -18,7 +18,14 @@ class AiTeacherChat extends StatefulWidget {
   State<AiTeacherChat> createState() => _AiTeacherChatState();
 }
 
-class _AiTeacherChatState extends State<AiTeacherChat> {
+class _AiTeacherChatState extends State<AiTeacherChat>
+    with AutomaticKeepAliveClientMixin {
+  // Keeps the chat alive when the student switches to another tab, so the
+  // conversation isn't lost. It only resets when they open a DIFFERENT topic
+  // (which builds a brand-new chat widget).
+  @override
+  bool get wantKeepAlive => true;
+
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
   final List<Map<String, String>> _messages = [];
@@ -84,6 +91,7 @@ class _AiTeacherChatState extends State<AiTeacherChat> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // required by AutomaticKeepAliveClientMixin
     return Column(
       children: [
         _header(),

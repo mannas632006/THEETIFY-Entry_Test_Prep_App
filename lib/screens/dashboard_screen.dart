@@ -152,6 +152,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     value: reminder,
                     onChanged: (v) => setLocal(() => reminder = v),
                   ),
+                  const Divider(),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        _confirmReset();
+                      },
+                      icon: const Icon(Icons.delete_outline,
+                          color: Colors.red),
+                      label: const Text('Reset my progress',
+                          style: TextStyle(color: Colors.red)),
+                    ),
+                  ),
                 ],
               ),
               actions: [
@@ -174,6 +188,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
         );
       },
     );
+  }
+
+  Future<void> _confirmReset() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Reset progress?'),
+        content: const Text(
+            'This clears your completed topics, quiz history, streak, and '
+            '"continue where you left off". Bookmarks are kept. This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(c).pop(true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ContentService.resetProgress();
+      if (!mounted) return;
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Progress reset.')));
+      }
+    }
   }
 
   @override
@@ -247,6 +293,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Text('Let\'s keep your preparation on track.',
                 style: TextStyle(color: Colors.black54)),
             const SizedBox(height: 16),
+
+            // Getting-started hint for brand-new students.
+            if (_completed == 0 &&
+                _attempts.isEmpty &&
+                _bookmarks.isEmpty &&
+                _lastViewed == null) ...[
+              _banner(
+                Icons.rocket_launch_outlined,
+                'New here? Tap "Browse Exams" below to open your first topic. '
+                'Your progress, streak, and weak areas appear here as you study.',
+                _accent,
+                const Color(0x141B98E0),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Nudge.
             if (_reminderOn && !_studiedToday) ...[

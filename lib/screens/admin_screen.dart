@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../services/auth_service.dart';
+import '../services/ai_service.dart';
 import '../services/content_service.dart';
 import '../services/generation_service.dart';
 import '../config/app_config.dart';
@@ -151,6 +152,66 @@ class _AdminScreenState extends State<AdminScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  // Fill in estimated study time for any already-published topic that has none.
+  Future<void> _backfillEstimates() async {
+    if (!AppConfig.hasAi) {
+      _showMessage('AI is not set up. Add your AI key to the .env file.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _progress = 'Checking topics...';
+    });
+    try {
+      final topics = await ContentService.getAllTopics();
+      final meta = await ContentService.getAllTopicContentMeta();
+
+      final hasContent = <String>{};
+      final hasEstimate = <String>{};
+      for (final m in meta) {
+        final id = m['topic_id'].toString();
+        hasContent.add(id);
+        if (m['estimated_minutes'] != null) hasEstimate.add(id);
+      }
+
+      final todo = topics.where((t) {
+        final id = t['id'].toString();
+        return hasContent.contains(id) && !hasEstimate.contains(id);
+      }).toList();
+
+      if (todo.isEmpty) {
+        _showMessage('All published topics already have a time estimate.');
+        setState(() => _busy = false);
+        return;
+      }
+
+      var done = 0;
+      for (final t in todo) {
+        final id = t['id'].toString();
+        final name = t['name']?.toString() ?? '';
+        final exam = (t['exams'] is Map)
+            ? ((t['exams'] as Map)['name']?.toString() ?? '')
+            : '';
+        setState(() =>
+            _progress = 'Estimating ${done + 1} of ${todo.length}: $name');
+        final txt = await AiService.generateEstimatedMinutes(name, exam);
+        final mins = _firstInt(txt) ?? 30;
+        await ContentService.updateEstimatedMinutes(id, mins);
+        done++;
+      }
+      _showMessage('Done! Estimated $done topic(s).');
+    } catch (e) {
+      _showMessage('Backfill failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  int? _firstInt(String text) {
+    final m = RegExp(r'\d+').firstMatch(text);
+    return m == null ? null : int.tryParse(m.group(0)!);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -233,6 +294,38 @@ class _AdminScreenState extends State<AdminScreen> {
                         onPressed: _busy ? null : _generate,
                         icon: const Icon(Icons.auto_awesome),
                         label: const Text('Generate Everything'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Maintenance: fill in estimated study time for older topics.
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: BorderSide(color: Colors.grey.shade200),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Maintenance',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Older topics published before time estimates existed '
+                        'show no study time. This fills them in using the AI.',
+                        style: TextStyle(color: Colors.black54, fontSize: 13),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _busy ? null : _backfillEstimates,
+                        icon: const Icon(Icons.schedule),
+                        label:
+                            const Text('Estimate time for existing topics'),
                       ),
                     ],
                   ),

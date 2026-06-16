@@ -403,4 +403,45 @@ class ContentService {
       'created_at': DateTime.now().toIso8601String(),
     }, onConflict: 'user_id');
   }
+
+  // ==========================================================================
+  // MAINTENANCE / ADMIN HELPERS
+  // ==========================================================================
+
+  // All topic_content rows with just their topic id + estimated time (used to
+  // find which already-published topics still need a time estimate).
+  static Future<List<Map<String, dynamic>>> getAllTopicContentMeta() async {
+    if (!AppConfig.hasSupabase) return [];
+    final r = await _client
+        .from('topic_content')
+        .select('topic_id, estimated_minutes');
+    return List<Map<String, dynamic>>.from(r);
+  }
+
+  // Set the estimated study time for one topic.
+  static Future<void> updateEstimatedMinutes(
+      String topicId, int minutes) async {
+    await _client.from('topic_content').update({
+      'estimated_minutes': minutes,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('topic_id', topicId);
+  }
+
+  // ==========================================================================
+  // RESET (a student clears their own progress)
+  // ==========================================================================
+
+  static Future<void> resetProgress() async {
+    final uid = _uid;
+    if (uid == null) return;
+    await _client.from('progress').delete().eq('user_id', uid);
+    await _client.from('quiz_attempts').delete().eq('user_id', uid);
+    await _client.from('last_viewed').delete().eq('user_id', uid);
+    await _client.from('student_settings').upsert({
+      'user_id': uid,
+      'streak_count': 0,
+      'last_active_date': null,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, onConflict: 'user_id');
+  }
 }
