@@ -1,8 +1,9 @@
 // ===========================================================================
 // lib/screens/auth_screen.dart
 // ---------------------------------------------------------------------------
-// One screen for BOTH login and signup. After success, the student lands on
-// their Home dashboard.
+// One screen for BOTH login and signup. Pass startInSignup: true (via
+// /login?mode=signup) to open directly in create-account mode. After success,
+// the student lands on their Home dashboard.
 // ===========================================================================
 
 import 'package:flutter/material.dart';
@@ -12,7 +13,8 @@ import '../services/auth_service.dart';
 import '../config/app_config.dart';
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+  final bool startInSignup;
+  const AuthScreen({super.key, this.startInSignup = false});
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -22,9 +24,15 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  bool _isLoginMode = true;
+  late bool _isLoginMode;
   bool _busy = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLoginMode = !widget.startInSignup;
+  }
 
   Future<void> _submit() async {
     if (!AppConfig.hasSupabase) {
@@ -49,7 +57,6 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _busy = false);
 
     if (error == null) {
-      // Success: go to the student's home dashboard.
       context.go('/dashboard');
     } else {
       setState(() => _error = error);

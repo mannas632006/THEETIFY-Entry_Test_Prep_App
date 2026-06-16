@@ -31,6 +31,11 @@ class _AiTeacherChatState extends State<AiTeacherChat>
   final List<Map<String, String>> _messages = [];
   bool _waiting = false;
 
+  // Light client-side rate limit to protect the AI quota. Not bulletproof
+  // (a determined user could bypass it), but it stops accidental spamming.
+  final List<DateTime> _sendTimes = [];
+  static const int _maxPerMinute = 10;
+
   static const _accent = Color(0xFF1B98E0);
 
   static const List<String> _starters = [
@@ -43,6 +48,22 @@ class _AiTeacherChatState extends State<AiTeacherChat>
   Future<void> _sendText(String text) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty || _waiting) return;
+
+    // Rate limit: too many messages in the last minute -> ask them to wait.
+    final now = DateTime.now();
+    _sendTimes.removeWhere((t) => now.difference(t).inSeconds >= 60);
+    if (_sendTimes.length >= _maxPerMinute) {
+      setState(() {
+        _messages.add({
+          'role': 'assistant',
+          'content':
+              "You're asking questions very quickly. Please wait a moment, then continue.",
+        });
+      });
+      _scrollToBottom();
+      return;
+    }
+    _sendTimes.add(now);
 
     // Snapshot PAST turns before adding the new message (so it isn't sent twice).
     final history = List<Map<String, String>>.from(_messages);

@@ -1,11 +1,13 @@
 // ===========================================================================
 // lib/router/app_router.dart
 // ---------------------------------------------------------------------------
-// The map of the app: which screen each web address shows.
+// The map of the app: which screen each web address shows. Also redirects
+// already-logged-in visitors away from the welcome page to their dashboard.
 // ===========================================================================
 
 import 'package:go_router/go_router.dart';
 
+import '../services/auth_service.dart';
 import '../screens/home_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/dashboard_screen.dart';
@@ -17,16 +19,23 @@ import '../screens/admin_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
+  // If a logged-in user lands on the welcome page, send them to their home.
+  redirect: (context, state) {
+    if (state.uri.path == '/' && AuthService.isLoggedIn) return '/dashboard';
+    return null;
+  },
   routes: [
     // Public landing / welcome screen.
     GoRoute(
       path: '/',
       builder: (context, state) => const HomeScreen(),
     ),
-    // Login / create account.
+    // Login / create account. Open /login?mode=signup to start in sign-up mode.
     GoRoute(
       path: '/login',
-      builder: (context, state) => const AuthScreen(),
+      builder: (context, state) => AuthScreen(
+        startInSignup: state.uri.queryParameters['mode'] == 'signup',
+      ),
     ),
     // The student's home dashboard (after login).
     GoRoute(
