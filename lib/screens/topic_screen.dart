@@ -1,15 +1,15 @@
 // ===========================================================================
 // lib/screens/topic_screen.dart
 // ---------------------------------------------------------------------------
-// A single topic's study page (6 tabs). Now also:
-//   - records this as the student's "last viewed" topic (for the dashboard),
-//   - lets the student BOOKMARK the topic (app bar),
-//   - lets the student MARK it COMPLETE (app bar),
-//   - passes the topic id to the quiz so scores are saved to history.
+// A single topic's study page. Content is now GATED: only subscribed students
+// (or the admin) can open the material. Non-subscribers see a paywall. The
+// topic name is still visible (they reach this from the public topic list);
+// only the lessons/notes/quiz/AI-teacher are locked.
 // ===========================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:go_router/go_router.dart';
 
 import '../services/auth_service.dart';
 import '../services/content_service.dart';
@@ -29,24 +29,44 @@ class TopicScreen extends StatefulWidget {
 }
 
 class _TopicScreenState extends State<TopicScreen> {
+  bool _checkingAccess = true;
+  bool _hasAccess = false;
   Future<Map<String, dynamic>?>? _contentFuture;
 
   bool _bookmarked = false;
   bool _completed = false;
 
-  bool get _loggedIn => AuthService.isLoggedIn;
-
   @override
   void initState() {
     super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
     final id = widget.topicId;
-    if (id != null && id.isNotEmpty) {
-      _contentFuture = ContentService.getTopicContent(id);
-      if (_loggedIn) {
-        ContentService.setLastViewed(id, widget.topicName);
-        _loadStatus(id);
-      }
+
+    // Record this as the last-viewed topic (so it shows on the dashboard).
+    if (id != null && id.isNotEmpty && AuthService.isLoggedIn) {
+      ContentService.setLastViewed(id, widget.topicName);
     }
+
+    bool access = false;
+    try {
+      final subscribed = await ContentService.isSubscribed();
+      final admin = await AuthService.isAdmin();
+      access = subscribed || admin;
+    } catch (_) {}
+
+    if (!mounted) return;
+    setState(() {
+      _hasAccess = access;
+      _checkingAccess = false;
+      if (access && id != null && id.isNotEmpty) {
+        _contentFuture = ContentService.getTopicContent(id);
+      }
+    });
+
+    if (access && id != null && id.isNotEmpty) _loadStatus(id);
   }
 
   Future<void> _loadStatus(String id) async {
@@ -85,15 +105,31 @@ class _TopicScreenState extends State<TopicScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hasId = widget.topicId != null && widget.topicId!.isNotEmpty;
+    // Checking access.
+    if (_checkingAccess) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.topicName)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
+    // Locked.
+    if (!_hasAccess) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.topicName)),
+        body: _paywall(),
+      );
+    }
+
+    // Unlocked: the full study page.
+    final hasId = widget.topicId != null && widget.topicId!.isNotEmpty;
     return DefaultTabController(
       length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: Text(widget.topicName),
           actions: [
-            if (hasId && _loggedIn) ...[
+            if (hasId) ...[
               IconButton(
                 tooltip: _bookmarked ? 'Remove bookmark' : 'Bookmark',
                 icon: Icon(
@@ -163,6 +199,45 @@ class _TopicScreenState extends State<TopicScreen> {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _paywall() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircleAvatar(
+                radius: 34,
+                backgroundColor: Color(0x1F1B98E0),
+                child: Icon(Icons.lock_outline,
+                    color: Color(0xFF1B98E0), size: 34),
+              ),
+              const SizedBox(height: 18),
+              const Text('This material is locked',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 8),
+              const Text(
+                'Subscribe to unlock the full lesson, deep notes, crash notes, '
+                'quiz, and AI teacher for every topic.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.black54, fontSize: 15),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () => context.go('/subscribe'),
+                icon: const Icon(Icons.lock_open),
+                label: const Text('Unlock — view the plan'),
+              ),
+            ],
+          ),
         ),
       ),
     );

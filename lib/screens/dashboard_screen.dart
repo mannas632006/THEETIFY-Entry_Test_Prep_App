@@ -31,6 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   bool _loading = true;
   String? _error;
+  bool _subscribed = false;
 
   int _total = 0;
   int _completed = 0;
@@ -66,8 +67,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final bookmarks = await ContentService.getBookmarks();
       final allTopics = await ContentService.getAllTopics();
       final settings = await ContentService.getSettings();
+      final subscribed = await ContentService.isSubscribed();
       if (!mounted) return;
       setState(() {
+        _subscribed = subscribed;
         _total = total;
         _completed = completed.length;
         _lastViewed = lastViewed;
@@ -293,6 +296,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const Text('Let\'s keep your preparation on track.',
                 style: TextStyle(color: Colors.black54)),
             const SizedBox(height: 16),
+
+            // Subscription status.
+            if (!_subscribed) ...[
+              InkWell(
+                onTap: () => context.go('/subscribe'),
+                borderRadius: BorderRadius.circular(12),
+                child: _banner(
+                  Icons.lock_open,
+                  'You\'re on a free account — subscribe to unlock all study '
+                  'material. Tap to view the plan.',
+                  _accent,
+                  const Color(0x141B98E0),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Getting-started hint for brand-new students.
             if (_completed == 0 &&

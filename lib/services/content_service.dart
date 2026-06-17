@@ -444,4 +444,103 @@ class ContentService {
       'updated_at': DateTime.now().toIso8601String(),
     }, onConflict: 'user_id');
   }
+
+  // ==========================================================================
+  // SUBSCRIPTIONS & PAYMENTS (Phase A — manual approval)
+  // ==========================================================================
+
+  // Is the current user an active subscriber?
+  static Future<bool> isSubscribed() async {
+    final uid = _uid;
+    if (uid == null) return false;
+    try {
+      final r = await _client
+          .from('subscriptions')
+          .select('active, expires_at')
+          .eq('user_id', uid)
+          .maybeSingle();
+      if (r == null || r['active'] != true) return false;
+      final exp = r['expires_at'];
+      if (exp == null) return true; // lifetime
+      final d = DateTime.tryParse(exp.toString());
+      return d == null ? true : d.isAfter(DateTime.now());
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // A student submits proof of payment (lands in the admin's review queue).
+  static Future<void> submitPaymentRequest({
+    required String amount,
+    required String senderNumber,
+    required String transactionId,
+  }) async {
+    final uid = _uid;
+    if (uid == null) return;
+    await _client.from('payment_requests').insert({
+      'user_id': uid,
+      'email': _client.auth.currentUser?.email,
+      'amount': amount,
+      'sender_number': senderNumber,
+      'transaction_id': transactionId,
+      'status': 'pending',
+      'created_at': DateTime.now().toIso8601String(),
+    });
+  }
+
+  // The student's most recent payment request (to show its status).
+  static Future<Map<String, dynamic>?> getMyLatestPaymentRequest() async {
+    final uid = _uid;
+    if (uid == null) return null;
+    try {
+      final r = await _client
+          .from('payment_requests')
+          .select()
+          .eq('user_id', uid)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      return r;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // --- Admin side ---
+  static Future<List<Map<String, dynamic>>> getPendingPaymentRequests() async {
+    try {
+      final r = await _client
+          .from('payment_requests')
+          .select()
+          .eq('status', 'pending')
+          .order('created_at', ascending: true);
+      return List<Map<String, dynamic>>.from(r);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  static Future<void> approvePaymentRequest(
+    String requestId,
+    String userId, {
+    DateTime? expiresAt,
+  }) async {
+    await _client.from('subscriptions').upsert({
+      'user_id': userId,
+      'active': true,
+      'expires_at': expiresAt?.toIso8601String(),
+      'granted_at': DateTime.now().toIso8601String(),
+    }, onConflict: 'user_id');
+    await _client.from('payment_requests').update({
+      'status': 'approved',
+      'reviewed_at': DateTime.now().toIso8601String(),
+    }).eq('id', requestId);
+  }
+
+  static Future<void> rejectPaymentRequest(String requestId) async {
+    await _client.from('payment_requests').update({
+      'status': 'rejected',
+      'reviewed_at': DateTime.now().toIso8601String(),
+    }).eq('id', requestId);
+  }
 }
