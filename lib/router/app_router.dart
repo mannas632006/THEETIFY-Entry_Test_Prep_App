@@ -16,7 +16,6 @@ import '../screens/topic_list_screen.dart';
 import '../screens/topic_screen.dart';
 import '../screens/timetable_screen.dart';
 import '../screens/admin_screen.dart';
-import '../screens/subscribe_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -47,10 +46,6 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/timetable',
       builder: (context, state) => const TimetableScreen(),
-    ),
-    GoRoute(
-      path: '/subscribe',
-      builder: (context, state) => const SubscribeScreen(),
     ),
     // The Admin Dashboard (owner only).
     GoRoute(

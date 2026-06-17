@@ -37,14 +37,12 @@ class _AdminScreenState extends State<AdminScreen> {
   bool _busy = false;
   String _progress = '';
   Map<String, dynamic>? _result;
-  List<Map<String, dynamic>> _pending = [];
 
   @override
   void initState() {
     super.initState();
     _accessFuture = AuthService.isAdmin();
     _loadExams();
-    _loadPending();
   }
 
   Future<void> _loadExams() async {
@@ -214,139 +212,6 @@ class _AdminScreenState extends State<AdminScreen> {
     return m == null ? null : int.tryParse(m.group(0)!);
   }
 
-  // -------- Payment requests (Phase A manual approval) --------
-
-  Future<void> _loadPending() async {
-    try {
-      final p = await ContentService.getPendingPaymentRequests();
-      if (!mounted) return;
-      setState(() => _pending = p);
-    } catch (_) {}
-  }
-
-  Future<void> _approve(Map<String, dynamic> req) async {
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (c) => SimpleDialog(
-        title: const Text('Grant access for'),
-        children: [
-          SimpleDialogOption(
-              onPressed: () => Navigator.pop(c, '1m'),
-              child: const Text('1 month')),
-          SimpleDialogOption(
-              onPressed: () => Navigator.pop(c, '3m'),
-              child: const Text('3 months')),
-          SimpleDialogOption(
-              onPressed: () => Navigator.pop(c, '1y'),
-              child: const Text('1 year')),
-          SimpleDialogOption(
-              onPressed: () => Navigator.pop(c, 'life'),
-              child: const Text('Lifetime')),
-        ],
-      ),
-    );
-    if (choice == null) return;
-
-    final now = DateTime.now();
-    DateTime? exp;
-    if (choice == '1m') {
-      exp = DateTime(now.year, now.month + 1, now.day);
-    } else if (choice == '3m') {
-      exp = DateTime(now.year, now.month + 3, now.day);
-    } else if (choice == '1y') {
-      exp = DateTime(now.year + 1, now.month, now.day);
-    } else {
-      exp = null; // lifetime
-    }
-
-    try {
-      await ContentService.approvePaymentRequest(
-        req['id'].toString(),
-        req['user_id'].toString(),
-        expiresAt: exp,
-      );
-      _showMessage('Approved — access granted.');
-      _loadPending();
-    } catch (e) {
-      _showMessage('Approve failed: $e');
-    }
-  }
-
-  Future<void> _reject(Map<String, dynamic> req) async {
-    try {
-      await ContentService.rejectPaymentRequest(req['id'].toString());
-      _showMessage('Request rejected.');
-      _loadPending();
-    } catch (e) {
-      _showMessage('Reject failed: $e');
-    }
-  }
-
-  Widget _paymentRequestsCard() {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFFE0921A)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Payment requests (${_pending.length})',
-                style:
-                    const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            const Text(
-                'Verify each payment in your EasyPaisa app, then approve.',
-                style: TextStyle(color: Colors.black54, fontSize: 13)),
-            const SizedBox(height: 12),
-            ..._pending.map(
-              (r) => Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFBF1DF),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(r['email']?.toString() ?? 'Unknown user',
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 4),
-                    Text(
-                        'Amount: ${r['amount'] ?? '-'}   ·   '
-                        'From: ${r['sender_number'] ?? '-'}',
-                        style: const TextStyle(fontSize: 13)),
-                    Text('TID: ${r['transaction_id'] ?? '-'}',
-                        style: const TextStyle(
-                            fontSize: 13, color: Colors.black54)),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        ElevatedButton(
-                          onPressed: () => _approve(r),
-                          child: const Text('Approve'),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          onPressed: () => _reject(r),
-                          child: const Text('Reject'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -406,10 +271,6 @@ class _AdminScreenState extends State<AdminScreen> {
                 style: TextStyle(color: Colors.black54),
               ),
               const SizedBox(height: 20),
-              if (_pending.isNotEmpty) ...[
-                _paymentRequestsCard(),
-                const SizedBox(height: 16),
-              ],
               Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
