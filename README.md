@@ -3,10 +3,6 @@
 An AI-powered study platform for students preparing for entrance exams in Pakistan
 (NUST NET, SAT, LSAT, NTS, GIKI, and more).
 
-> NOTE: This README is written in plain English on purpose. You (the owner) are not
-> a technical person, so everything here is explained simply. You do not need to
-> understand the code to run this project. Just follow the steps below.
-
 ---
 
 ## What this app does (in simple words)
@@ -43,10 +39,6 @@ by changing ONE value. No code rewrite needed.
 ---
 
 ## IMPORTANT: Secrets / API keys (read this!)
-
-NEVER write your real API keys directly in the code or paste them in chat.
-All secret keys go into a private file called `.env` (see `.env.example` for the
-template). That file is ignored by Git, so it never gets uploaded.
 
 Steps:
 1. Make a copy of `.env.example` and rename the copy to `.env`.
